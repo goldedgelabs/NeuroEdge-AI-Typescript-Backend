@@ -1,41 +1,59 @@
-// src/db/dbManager.ts
-import { publish } from "../core/engineManager"; // EventBus from engineManager
+import fs from "fs";
+import path from "path";
+import { publish } from "../core/engineManager";
 
-interface DBRecord {
-  id: string;
-  [key: string]: any;
-}
+// Paths
+const EDGE_PATH = path.join(__dirname, "edge");
+const SHARED_PATH = path.join(__dirname, "shared");
 
-type DBStore = Record<string, Record<string, DBRecord>>; // collection → id → record
+// Ensure folders exist
+if (!fs.existsSync(EDGE_PATH)) fs.mkdirSync(EDGE_PATH, { recursive: true });
+if (!fs.existsSync(SHARED_PATH)) fs.mkdirSync(SHARED_PATH, { recursive: true });
 
-class DBManager {
-  private edge: DBStore = {};
-  private shared: DBStore = {};
+type DBScope = "edge" | "shared";
 
-  async set(collection: string, id: string, record: DBRecord, target: "edge" | "shared" = "edge") {
-    const store = target === "edge" ? this.edge : this.shared;
-    if (!store[collection]) store[collection] = {};
-    store[collection][id] = record;
+export const db = {
+  async set(collection: string, key: string, value: any, scope: DBScope = "edge") {
+    const filePath = path.join(scope === "edge" ? EDGE_PATH : SHARED_PATH, `${collection}.json`);
+    let data: Record<string, any> = {};
+    if (fs.existsSync(filePath)) {
+      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    }
+    data[key] = value;
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 
-    // Emit DB event for subscribers
-    publish("db:update", { collection, key: id, value: record, target });
+    // Publish DB event
+    publish("db:update", { collection, key, value, target: scope });
+  },
+
+  async get(collection: string, key: string, scope: DBScope = "edge") {
+    const filePath = path.join(scope === "edge" ? EDGE_PATH : SHARED_PATH, `${collection}.json`);
+    if (!fs.existsSync(filePath)) return null;
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return data[key] ?? null;
+  },
+
+  async delete(collection: string, key: string, scope: DBScope = "edge") {
+    const filePath = path.join(scope === "edge" ? EDGE_PATH : SHARED_PATH, `${collection}.json`);
+    if (!fs.existsSync(filePath)) return false;
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    delete data[key];
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+
+    // Publish DB deletion event
+    publish("db:delete", { collection, key, target: scope });
+    return true;
+  },
+
+  async getAll(collection: string, scope: DBScope = "edge") {
+    const filePath = path.join(scope === "edge" ? EDGE_PATH : SHARED_PATH, `${collection}.json`);
+    if (!fs.existsSync(filePath)) return [];
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return Object.values(data);
+  },
+
+  async listCollections(scope: DBScope = "edge") {
+    const folderPath = scope === "edge" ? EDGE_PATH : SHARED_PATH;
+    return fs.readdirSync(folderPath).map(file => file.replace(".json", ""));
   }
-
-  async get(collection: string, id: string, target: "edge" | "shared" = "edge") {
-    const store = target === "edge" ? this.edge : this.shared;
-    return store[collection]?.[id] ?? null;
-  }
-
-  async getAll(collection: string, target: "edge" | "shared" = "edge") {
-    const store = target === "edge" ? this.edge : this.shared;
-    return Object.values(store[collection] || {});
-  }
-
-  async delete(collection: string, id: string, target: "edge" | "shared" = "edge") {
-    const store = target === "edge" ? this.edge : this.shared;
-    delete store[collection]?.[id];
-    publish("db:delete", { collection, key: id, target });
-  }
-}
-
-export const db = new DBManager();
+};
