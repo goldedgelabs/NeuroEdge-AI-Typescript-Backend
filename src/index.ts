@@ -38,6 +38,12 @@ import { ARVEngine } from "./engines/ARVEngine";
 import { MedicineManagementEngine } from "./engines/MedicineManagementEngine";
 import { GoldEdgeIntegrationEngine } from "./engines/GoldEdgeIntegrationEngine";
 import { initializeDBWiring } from "./core/dbEventWiring";
+import { initializeDBWiring } from "./core/dbEventWiring";
+
+// Initialize DB event subscriptions for all engines & agents
+initializeDBWiring();
+
+console.log("[App] NeuroEdge system fully wired for DB events");
 
 // Initialize DB event subscriptions for all engines & agents
 initializeDBWiring();
