@@ -33,6 +33,7 @@ import { SecurityAgent } from "../agents/SecurityAgent";
 import { VisionAgent } from "../agents/VisionAgent";
 import { VoiceAgent } from "../agents/VoiceAgent";
 import { ReinforcementAgent } from "../agents/ReinforcementAgent";
+import { DoctrineAgent as DA } from "../agents/DoctrineAgent";
 import { PersonaAgent } from "../agents/PersonaAgent";
 import { ARVAgent } from "../agents/ARVAgent";
 import { SelfImprovementAgent } from "../agents/SelfImprovementAgent";
@@ -73,7 +74,7 @@ import { SelfProtectionAgent } from "../agents/SelfProtectionAgent";
 export const agentManager: Record<string, any> = {};
 const doctrine = new DoctrineAgent();
 
-// global reference for agents to access manager
+// global reference
 (globalThis as any).__NE_AGENT_MANAGER = agentManager;
 
 // -----------------------------
@@ -100,7 +101,7 @@ export function registerAgent(name: string, agentInstance: any) {
             return { blocked: true, message: doctrineResult.message };
           }
 
-          // Run original method with self-healing
+          // Self-healing
           try {
             return await origMethod.apply(target, args);
           } catch (err) {
@@ -117,7 +118,7 @@ export function registerAgent(name: string, agentInstance: any) {
 }
 
 // -----------------------------
-// Event Bus for agent communication
+// Event Bus
 // -----------------------------
 export const eventBus: Record<string, Function[]> = {};
 export function subscribe(channel: string, callback: Function) {
@@ -132,35 +133,30 @@ export function publish(channel: string, data: any) {
 // -----------------------------
 // Register all 56 agents
 // -----------------------------
-const agents = [
-  PlannerAgent, CriticAgent, WorkerAgent, VerifierAgent, SupervisorAgent,
-  SelfHealingAgent, PredictiveAgent, AnalyticsAgent, MemoryAgent, TranslatorAgent,
-  ConversationAgent, MonitoringAgent, SchedulingAgent, RecommendationAgent,
-  OrchestrationAgent, CreativityAgent, SecurityAgent, VisionAgent, VoiceAgent,
-  ReinforcementAgent, PersonaAgent, ARVAgent, SelfImprovementAgent, DataIngestAgent,
-  SummarizationAgent, SearchAgent, OrchestratorAgent, SchedulerAgent, PlannerHelperAgent,
-  MetricsAgent, TelemetryAgent, FileHandlerAgent, BillingAgent, FounderAgent,
-  PluginAgent, GPUAgent, OfflineAgent, AutoUpdateAgent, HotReloadAgent,
-  SecurityCheckAgent, DistributedTaskAgent, PluginManagerAgent, LocalStorageAgent,
-  EdgeDeviceAgent, CollaborationAgent, ResearchAgent, SimulationAgent, FeedbackAgent,
-  EvolutionAgent, LearningAgent, GlobalMeshAgent, PhoneSecurityAgent,
-  MedicineManagementAgent, GoldEdgeIntegrationAgent, SelfProtectionAgent
+const agents: any[] = [
+  PlannerAgent, CriticAgent, WorkerAgent, VerifierAgent, SupervisorAgent, SelfHealingAgent,
+  PredictiveAgent, AnalyticsAgent, MemoryAgent, TranslatorAgent, ConversationAgent, MonitoringAgent,
+  SchedulingAgent, RecommendationAgent, OrchestrationAgent, CreativityAgent, SecurityAgent, VisionAgent,
+  VoiceAgent, ReinforcementAgent, DA, PersonaAgent, ARVAgent, SelfImprovementAgent, DataIngestAgent,
+  SummarizationAgent, SearchAgent, OrchestratorAgent, SchedulerAgent, PlannerHelperAgent, MetricsAgent,
+  TelemetryAgent, FileHandlerAgent, BillingAgent, FounderAgent, PluginAgent, GPUAgent, OfflineAgent,
+  AutoUpdateAgent, HotReloadAgent, SecurityCheckAgent, DistributedTaskAgent, PluginManagerAgent,
+  LocalStorageAgent, EdgeDeviceAgent, CollaborationAgent, ResearchAgent, SimulationAgent, FeedbackAgent,
+  EvolutionAgent, LearningAgent, GlobalMeshAgent, PhoneSecurityAgent, MedicineManagementAgent,
+  GoldEdgeIntegrationAgent, SelfProtectionAgent
 ];
 
-// Register loop
-const agentNames = [
-  "PlannerAgent","CriticAgent","WorkerAgent","VerifierAgent","SupervisorAgent",
-  "SelfHealingAgent","PredictiveAgent","AnalyticsAgent","MemoryAgent","TranslatorAgent",
-  "ConversationAgent","MonitoringAgent","SchedulingAgent","RecommendationAgent",
-  "OrchestrationAgent","CreativityAgent","SecurityAgent","VisionAgent","VoiceAgent",
-  "ReinforcementAgent","PersonaAgent","ARVAgent","SelfImprovementAgent","DataIngestAgent",
-  "SummarizationAgent","SearchAgent","OrchestratorAgent","SchedulerAgent","PlannerHelperAgent",
-  "MetricsAgent","TelemetryAgent","FileHandlerAgent","BillingAgent","FounderAgent",
-  "PluginAgent","GPUAgent","OfflineAgent","AutoUpdateAgent","HotReloadAgent",
-  "SecurityCheckAgent","DistributedTaskAgent","PluginManagerAgent","LocalStorageAgent",
-  "EdgeDeviceAgent","CollaborationAgent","ResearchAgent","SimulationAgent","FeedbackAgent",
-  "EvolutionAgent","LearningAgent","GlobalMeshAgent","PhoneSecurityAgent",
-  "MedicineManagementAgent","GoldEdgeIntegrationAgent","SelfProtectionAgent"
+const agentNames: string[] = [
+  "PlannerAgent","CriticAgent","WorkerAgent","VerifierAgent","SupervisorAgent","SelfHealingAgent",
+  "PredictiveAgent","AnalyticsAgent","MemoryAgent","TranslatorAgent","ConversationAgent","MonitoringAgent",
+  "SchedulingAgent","RecommendationAgent","OrchestrationAgent","CreativityAgent","SecurityAgent","VisionAgent",
+  "VoiceAgent","ReinforcementAgent","DoctrineAgent","PersonaAgent","ARVAgent","SelfImprovementAgent","DataIngestAgent",
+  "SummarizationAgent","SearchAgent","OrchestratorAgent","SchedulerAgent","PlannerHelperAgent","MetricsAgent",
+  "TelemetryAgent","FileHandlerAgent","BillingAgent","FounderAgent","PluginAgent","GPUAgent","OfflineAgent",
+  "AutoUpdateAgent","HotReloadAgent","SecurityCheckAgent","DistributedTaskAgent","PluginManagerAgent",
+  "LocalStorageAgent","EdgeDeviceAgent","CollaborationAgent","ResearchAgent","SimulationAgent","FeedbackAgent",
+  "EvolutionAgent","LearningAgent","GlobalMeshAgent","PhoneSecurityAgent","MedicineManagementAgent",
+  "GoldEdgeIntegrationAgent","SelfProtectionAgent"
 ];
 
 agents.forEach((agent, idx) => {
