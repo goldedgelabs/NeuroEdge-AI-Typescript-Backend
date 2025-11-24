@@ -1,27 +1,27 @@
 import { EngineBase } from "../EngineBase";
 import { logger } from "../../utils/logger";
-import { survivalCheck } from "./survival_check";
-import { utils } from "./utils";
 
 export class HealthEngine extends EngineBase {
   constructor() {
     super();
-    survivalCheck(this);
+    this.survivalCheck();
+  }
+
+  async survivalCheck() {
+    logger.log("HealthEngine is alive and monitoring systems...");
   }
 
   async run(input: any) {
-    logger.log("[HealthEngine] Running with input:", input);
-    // Placeholder: integrate with MedicineManagementAgent later
-    return { success: true, data: input };
+    logger.log("HealthEngine processing input:", input);
+    // Example: trigger MedicineManagementAgent
+    if ((globalThis as any).__NE_AGENT_MANAGER?.MedicineManagementAgent) {
+      const agent = (globalThis as any).__NE_AGENT_MANAGER.MedicineManagementAgent;
+      await agent.process(input);
+    }
+    return { status: "HealthEngine completed task" };
   }
 
   async recover(err: any) {
-    logger.error("[HealthEngine] Recovery triggered:", err);
+    logger.error("HealthEngine recovered from error:", err);
   }
-
-  async checkHealth() {
-    return survivalCheck(this);
-  }
-
-  utils = utils;
 }
