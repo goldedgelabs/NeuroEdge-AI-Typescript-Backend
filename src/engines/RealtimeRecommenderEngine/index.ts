@@ -1,53 +1,53 @@
-// src/engines/RealtimeRecommenderEngine/index.ts
 import { EngineBase } from "../EngineBase";
+import { logger } from "../../utils/logger";
 
-interface Recommendation {
-    message: string;
-    severity: "low" | "medium" | "high";
-    suggestedAction?: string;
+export class RealTimeRecommenderEngine extends EngineBase {
+  constructor() {
+    super();
+    this.name = "RealTimeRecommenderEngine";
+    this.survivalCheck();
+  }
+
+  async survivalCheck() {
+    logger.info(`[${this.name}] Performing survival check...`);
+    // Check recommendation models or cache availability
+    return true;
+  }
+
+  /**
+   * run function
+   * @param input - { userId: string, context?: any }
+   */
+  async run(input: { userId: string; context?: any }) {
+    logger.info(`[${this.name}] Generating real-time recommendations for:`, input.userId);
+
+    // Mock recommendation logic
+    const recommendations = [
+      { id: "item1", score: Math.random() },
+      { id: "item2", score: Math.random() },
+      { id: "item3", score: Math.random() },
+    ];
+
+    return {
+      userId: input.userId,
+      recommendations,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async recover(err: any) {
+    logger.error(`[${this.name}] Error recovered:`, err);
+    return { status: "recovered", message: "RealTimeRecommenderEngine recovered" };
+  }
+
+  async talkTo(engineName: string, method: string, payload: any) {
+    const engine = (globalThis as any).__NE_ENGINE_MANAGER[engineName];
+    if (engine && typeof engine[method] === "function") {
+      return engine[method](payload);
+    }
+    return null;
+  }
 }
 
-export class RealtimeRecommenderEngine extends EngineBase {
-    name = "RealtimeRecommenderEngine";
-
-    constructor() {
-        super();
-    }
-
-    analyzeSystemState(state: any): Recommendation[] {
-        const recommendations: Recommendation[] = [];
-
-        // Example checks
-        if (state.cpuUsage > 80) {
-            recommendations.push({
-                message: "High CPU usage detected. Consider scaling workers.",
-                severity: "high",
-                suggestedAction: "scaleWorkers",
-            });
-        }
-
-        if (!state.auditUpToDate) {
-            recommendations.push({
-                message: "Policy audit logs are stale.",
-                severity: "medium",
-                suggestedAction: "refreshAuditLogs",
-            });
-        }
-
-        if (state.memoryFragmented) {
-            recommendations.push({
-                message: "Memory fragmentation detected. Recommend cleanup or restart.",
-                severity: "medium",
-                suggestedAction: "memoryCleanup",
-            });
-        }
-
-        return recommendations;
-    }
-
-    broadcastRecommendations(state: any, callback: (rec: Recommendation) => void) {
-        const recs = this.analyzeSystemState(state);
-        recs.forEach(callback);
-        return recs;
-    }
-}
+// Optional: register immediately
+// registerEngine("RealTimeRecommenderEngine", new RealTimeRecommenderEngine());
