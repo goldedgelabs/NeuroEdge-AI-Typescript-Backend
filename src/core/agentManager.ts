@@ -7,9 +7,11 @@
  *  - Doctrine enforcement
  *  - Self-healing
  *  - Event bus communication
+ *  - DB event subscriptions
  */
 
 import { DoctrineAgent } from "../agents/DoctrineAgent";
+import { subscribe } from "./engineManager";
 
 // Existing Agents
 import { PlannerAgent } from "../agents/PlannerAgent";
@@ -128,6 +130,23 @@ export function publish(channel: string, data: any) {
 }
 
 // -----------------------------
+// DB Event Subscriptions
+// -----------------------------
+export function wireDBSubscriptions(agentName: string, agentInstance: any) {
+  subscribe("db:update", async (event: any) => {
+    if (typeof agentInstance.handleDBUpdate === "function") {
+      await agentInstance.handleDBUpdate(event);
+    }
+  });
+
+  subscribe("db:delete", async (event: any) => {
+    if (typeof agentInstance.handleDBDelete === "function") {
+      await agentInstance.handleDBDelete(event);
+    }
+  });
+}
+
+// -----------------------------
 // Register All Agents
 // -----------------------------
 const allAgents = [
@@ -148,5 +167,7 @@ const allAgents = [
 
 allAgents.forEach(AgentClass => {
   const name = AgentClass.name;
-  registerAgent(name, new AgentClass());
+  const instance = new AgentClass();
+  registerAgent(name, instance);
+  wireDBSubscriptions(name, instance);
 });
