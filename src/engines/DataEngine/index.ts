@@ -1,32 +1,33 @@
-// src/engines/DataEngine/index.ts
 import { EngineBase } from "../EngineBase";
-import { survivalCheck } from "./survival_check";
-import { addVector, queryVectors } from "./vectorStore";
-import { createEmbedding } from "./embeddingService";
-import { buildKnowledgeGraph, queryGraph } from "./knowledgeGraph";
-import { logger } from "../../utils/logger";
 
 export class DataEngine extends EngineBase {
-    name = "DataEngine";
+  constructor() {
+    super("DataEngine");
+  }
 
-    constructor() {
-        super();
-        logger.log(`[${this.name}] Initialized`);
-        const status = survivalCheck();
-        if (!status.online) logger.warn(`[${this.name}] Offline mode activated`);
-    }
+  async run(input: any) {
+    console.log(`[DataEngine] Processing data:`, input);
 
-    async storeData(id: string, content: string) {
-        const embedding = await createEmbedding(content);
-        addVector(id, embedding);
-        buildKnowledgeGraph(id, content);
-        return { id, embedding };
-    }
+    // Example: normalize, validate, or enrich data
+    const normalizedData = input?.data?.map((item: any) => ({
+      ...item,
+      processedAt: new Date().toISOString(),
+    })) || [];
 
-    async queryData(query: string) {
-        const embedding = await createEmbedding(query);
-        const results = queryVectors(embedding);
-        const graphResults = queryGraph(query);
-        return { results, graphResults };
-    }
+    return {
+      originalCount: input?.data?.length || 0,
+      normalizedCount: normalizedData.length,
+      normalizedData,
+    };
+  }
+
+  async handleDBUpdate(event: any) {
+    console.log(`[DataEngine] DB Update event:`, event);
+    // Optional: react to changes in shared DB
+  }
+
+  async handleDBDelete(event: any) {
+    console.log(`[DataEngine] DB Delete event:`, event);
+    // Optional: cleanup caches
+  }
 }
