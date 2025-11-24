@@ -1,39 +1,37 @@
-import {{ EngineBase }} from "../EngineBase";
-import {{ logger }} from "../../utils/logger";
-import {{ survivalCheck }} from "./survival_check";
+import { EngineBase } from "../EngineBase";
 
-export class DataIngestEngine extends EngineBase {{
-  name = "DataIngestEngine";
+export class DataIngestEngine extends EngineBase {
+  constructor() {
+    super("DataIngestEngine");
+  }
 
-  constructor() {{
-    super();
-    try {{
-      const status = (typeof survivalCheck === "function") ? survivalCheck() : {{ online: true }};
-      if (status && typeof status.then === "function") {{
-        status.then((s: any) => {{
-          if (!s?.online) logger.warn(`[${{this.name}}] Offline mode activated`);
-        }}).catch((e:any)=>{{ logger.warn(`[${{this.name}}] survivalCheck error`, e); }});
-      }} else {{
-        if (!status?.online) logger.warn(`[${{this.name}}] Offline mode activated`);
-      }}
-    }} catch (err) {{
-      logger.warn(`[${{this.name}}] survival check failed`, err);
-    }}
-    logger.log(`[${{this.name}}] Initialized`);
-  }}
+  async run(input: any) {
+    console.log(`[DataIngestEngine] Running data ingestion:`, input);
 
-  // talkTo uses a global engineManager set by core/engineManager
-  async talkTo(engineName: string, method: string, payload: any) {{
-    const mgr = (globalThis as any).__NE_ENGINE_MANAGER;
-    if (!mgr) throw new Error("engineManager not initialized");
-    const engine = mgr[engineName];
-    if (!engine) throw new Error(`Engine ${{engineName}} not found`);
-    if (typeof engine[method] !== "function") throw new Error(`Method ${{method}} not found in ${{engineName}}`);
-    return await engine[method](payload);
-  }}
+    const source = input?.source || "unknown";
+    const data = input?.data || [];
 
-  async run(input: any) {{
-    logger.info(`[${{this.name}}] run called`);
-    return {{ engine: this.name, input }};
-  }}
-}}
+    // Placeholder: actual ingestion logic could be parsing, cleaning, transforming
+    const processedData = data.map((item: any, idx: number) => ({
+      id: idx,
+      ...item,
+      ingestedAt: new Date().toISOString()
+    }));
+
+    return {
+      source,
+      processedCount: processedData.length,
+      processedData
+    };
+  }
+
+  async handleDBUpdate(event: any) {
+    console.log(`[DataIngestEngine] DB Update event received:`, event);
+    // Optional: react to new data added in DB, reprocess or sync
+  }
+
+  async handleDBDelete(event: any) {
+    console.log(`[DataIngestEngine] DB Delete event received:`, event);
+    // Optional: clean caches or temporary ingestion storage
+  }
+}
