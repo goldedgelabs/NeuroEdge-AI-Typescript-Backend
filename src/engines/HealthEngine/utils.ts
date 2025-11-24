@@ -1,4 +1,6 @@
-export function engineUtils() {
-  // placeholder for engine-specific helper methods
-  return {};
-}
+export const utils = {
+  validateMedicineData: (data: any) => {
+    // Placeholder for validation logic
+    return true;
+  },
+};
