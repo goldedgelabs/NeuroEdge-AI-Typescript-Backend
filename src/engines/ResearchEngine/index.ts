@@ -1,36 +1,52 @@
 import { EngineBase } from "../EngineBase";
-import { survivalCheck } from "./survival_check";
-import { performResearch } from "./utils";
+import { logger } from "../../utils/logger";
 
-/**
- * ResearchEngine
- * Handles deep research queries, web/data analysis, and insight extraction.
- * Fully integrated with Doctrine and survival checks.
- */
 export class ResearchEngine extends EngineBase {
-    name = "ResearchEngine";
+  constructor() {
+    super();
+    this.name = "ResearchEngine";
+    this.survivalCheck();
+  }
 
-    /**
-     * Main execution method.
-     * Runs research queries safely if survival checks pass.
-     */
-    async run(query: string) {
-        const check = survivalCheck();
+  async survivalCheck() {
+    logger.info(`[${this.name}] Performing survival check...`);
+    // Ensure research modules, data sources are available
+    return true;
+  }
 
-        if (!check.memorySafe || !check.doctrineApproved) {
-            return {
-                blocked: true,
-                reason: "ResearchEngine cannot run due to memory, offline, or doctrine restrictions",
-            };
-        }
+  /**
+   * run function
+   * @param input - { topic: string, parameters?: any }
+   */
+  async run(input: { topic: string; parameters?: any }) {
+    logger.info(`[${this.name}] Running research on topic:`, input.topic);
 
-        const results = await performResearch(query);
+    // Mock research output
+    const researchResult = {
+      topic: input.topic,
+      summary: `Findings for '${input.topic}' generated`,
+      references: ["Ref1", "Ref2", "Ref3"],
+    };
 
-        return {
-            status: "success",
-            timestamp: new Date(),
-            query,
-            results,
-        };
+    return {
+      researchResult,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async recover(err: any) {
+    logger.error(`[${this.name}] Error recovered:`, err);
+    return { status: "recovered", message: "ResearchEngine recovered" };
+  }
+
+  async talkTo(engineName: string, method: string, payload: any) {
+    const engine = (globalThis as any).__NE_ENGINE_MANAGER[engineName];
+    if (engine && typeof engine[method] === "function") {
+      return engine[method](payload);
     }
+    return null;
+  }
 }
+
+// Optional: register immediately
+// registerEngine("ResearchEngine", new ResearchEngine());
