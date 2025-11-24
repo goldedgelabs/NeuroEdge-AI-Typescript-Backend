@@ -7,12 +7,15 @@
  *  - Doctrine enforcement
  *  - Self-healing
  *  - Inter-engine communication
+ *  - Runtime loop attachment
+ *  - Hot-Swap Support
  *  - runEngineChain helper
  */
 
 import { DoctrineEngine } from "../engines/DoctrineEngine/index";
+import { EngineRuntime } from "../runtime/EngineRuntime"; // <-- ensure this path is correct
 
-// Import all engines (25+)
+// Import engines (25+)
 import { SelfImprovementEngine } from "../engines/SelfImprovementEngine/index";
 import { PredictiveEngine } from "../engines/PredictiveEngine/index";
 import { CodeEngine } from "../engines/CodeEngine/index";
@@ -43,18 +46,17 @@ import { GoldEdgeIntegrationEngine } from "../engines/GoldEdgeIntegrationEngine/
 export const engineManager: Record<string, any> = {};
 const doctrine = new DoctrineEngine();
 
+// Preserve state for hot-swapping
+const engineStateStore: Record<string, any> = {};
+
 // Global reference for engines to access manager
 (globalThis as any).__NE_ENGINE_MANAGER = engineManager;
 
-// -----------------------------
-// Register Engines with Doctrine enforcement & self-healing
-// -----------------------------
-export function registerEngine(name: string, engineInstance: any) {
-  if (engineManager[name]) {
-    console.warn(`[EngineManager] Engine already registered: ${name}`);
-    return;
-  }
 
+/* ============================================================
+   REGISTER ENGINE INSTANCE (Proxy + Doctrine + Self-Healing)
+   ============================================================ */
+export function registerEngine(name: string, engineInstance: any) {
   engineManager[name] = new Proxy(engineInstance, {
     get(target: any, prop: string) {
       const origMethod = target[prop];
@@ -66,8 +68,8 @@ export function registerEngine(name: string, engineInstance: any) {
 
           // Doctrine enforcement
           let doctrineResult = { success: true };
-          if (doctrine && typeof (doctrine as any).enforceAction === "function") {
-            doctrineResult = await (doctrine as any).enforceAction(action, folderArg, userRole);
+          if (typeof doctrine.enforceAction === "function") {
+            doctrineResult = await doctrine.enforceAction(action, folderArg, userRole);
           }
 
           if (!doctrineResult.success) {
@@ -75,7 +77,7 @@ export function registerEngine(name: string, engineInstance: any) {
             return { blocked: true, message: doctrineResult.message };
           }
 
-          // Run original method with self-healing
+          // Execute method with self-healing
           try {
             return await origMethod.apply(target, args);
           } catch (err) {
@@ -91,40 +93,105 @@ export function registerEngine(name: string, engineInstance: any) {
   });
 }
 
-// -----------------------------
-// Event Bus
-// -----------------------------
+
+/* ============================================================
+   REGISTER ENGINE BY CLASS (Instance + Runtime + Proxy)
+   ============================================================ */
+export function registerEngineClass(EngineClass: any) {
+  const instance = new EngineClass();
+  const name = EngineClass.name;
+
+  // Attach runtime loop
+  if (EngineRuntime) {
+    instance.runtime = new EngineRuntime(instance);
+    instance.runtime.start();
+  }
+
+  registerEngine(name, instance);
+  return instance;
+}
+
+
+/* ============================================================
+   HOT SWAP ENGINE (zero downtime)
+   ============================================================ */
+export async function hotSwapEngine(oldName: string, NewEngineClass: any) {
+  const oldEngine = engineManager[oldName];
+  if (!oldEngine) throw new Error(`[HotSwap] Engine not found: ${oldName}`);
+
+  console.log(`\n[HotSwap] Swapping engine: ${oldName}`);
+
+  // Step 1: Export state
+  if (typeof oldEngine.exportState === "function") {
+    engineStateStore[oldName] = await oldEngine.exportState();
+  }
+
+  // Step 2: Stop runtime
+  try {
+    if (oldEngine.runtime?.stop) await oldEngine.runtime.stop();
+  } catch (_) {}
+
+  // Step 3: Create new engine instance
+  const newEngine = new NewEngineClass();
+
+  // Step 4: Restore state
+  if (engineStateStore[oldName] && typeof newEngine.importState === "function") {
+    await newEngine.importState(engineStateStore[oldName]);
+  }
+
+  // Step 5: Restart runtime
+  if (EngineRuntime) {
+    newEngine.runtime = new EngineRuntime(newEngine);
+    newEngine.runtime.start();
+  }
+
+  // Step 6: Re-register engine (proxy + doctrine)
+  registerEngine(oldName, newEngine);
+
+  console.log(`[HotSwap] Engine hot-swapped successfully: ${oldName}`);
+  return newEngine;
+}
+
+
+/* ============================================================
+   EVENT BUS
+   ============================================================ */
 export const eventBus: Record<string, Function[]> = {};
+
 export function subscribe(channel: string, callback: Function) {
   if (!eventBus[channel]) eventBus[channel] = [];
   eventBus[channel].push(callback);
 }
+
 export function publish(channel: string, data: any) {
   const subscribers = eventBus[channel] || [];
   subscribers.forEach(cb => cb(data));
 }
 
-// -----------------------------
-// Run multiple engines in sequence
-// -----------------------------
+
+/* ============================================================
+   RUN ENGINE CHAIN
+   ============================================================ */
 export async function runEngineChain(chain: { engine: string; input?: any }[]) {
   let lastOutput: any = null;
+
   for (const step of chain) {
     const engine = engineManager[step.engine];
     if (!engine) throw new Error(`Engine not registered: ${step.engine}`);
+
     if (typeof engine.run === "function") {
       lastOutput = await engine.run(step.input ?? lastOutput);
     } else if (typeof engine === "function") {
       lastOutput = await engine(step.input ?? lastOutput);
-    } else {
-      lastOutput = null;
     }
   }
   return lastOutput;
 }
 
-// -----------------------------
-// Register all engines (old + new)
+
+/* ============================================================
+   AUTO REGISTER ALL ENGINES
+   ============================================================ */
 const allEngines = [
   SelfImprovementEngine, PredictiveEngine, CodeEngine, VoiceEngine, VisionEngine,
   ReinforcementEngine, DataIngestEngine, AnalyticsEngine, PlannerEngine, MemoryEngine,
@@ -133,6 +200,4 @@ const allEngines = [
   SearchEngine, HealthEngine, DeviceProtectionEngine, GoldEdgeIntegrationEngine
 ];
 
-allEngines.forEach(EngineClass => {
-  registerEngine(EngineClass.name, new EngineClass());
-});
+allEngines.forEach(EngineClass => registerEngineClass(EngineClass));
