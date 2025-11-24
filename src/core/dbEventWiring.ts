@@ -1,17 +1,49 @@
 import { engineManager, eventBus } from "./engineManager";
 import { agentManager } from "./agentManager";
 
+// Add default DB handlers to all engines
+function addDefaultDBHandlersToEngines() {
+  for (const engineName in engineManager) {
+    const engine = engineManager[engineName];
+    if (!engine.handleDBUpdate) {
+      engine.handleDBUpdate = async (event: any) => {
+        console.log(`[DBEvent][Engine:${engineName}] update`, event.collection, event.key);
+      };
+    }
+    if (!engine.handleDBDelete) {
+      engine.handleDBDelete = async (event: any) => {
+        console.log(`[DBEvent][Engine:${engineName}] delete`, event.collection, event.key);
+      };
+    }
+  }
+}
+
+// Add default DB handlers to all agents
+function addDefaultDBHandlersToAgents() {
+  for (const agentName in agentManager) {
+    const agent = agentManager[agentName];
+    if (!agent.handleDBUpdate) {
+      agent.handleDBUpdate = async (event: any) => {
+        console.log(`[DBEvent][Agent:${agentName}] update`, event.collection, event.key);
+      };
+    }
+    if (!agent.handleDBDelete) {
+      agent.handleDBDelete = async (event: any) => {
+        console.log(`[DBEvent][Agent:${agentName}] delete`, event.collection, event.key);
+      };
+    }
+  }
+}
+
 // Subscribe all agents to DB events
-export function wireAgentsToDB() {
+function wireAgentsToDB() {
   eventBus.subscribe("db:update", async (event: any) => {
     for (const agentName in agentManager) {
       const agent = agentManager[agentName];
-      if (typeof agent.handleDBUpdate === "function") {
-        try {
-          await agent.handleDBUpdate(event);
-        } catch (err) {
-          console.warn(`[DBEvent] ${agentName} failed to handle update`, err);
-        }
+      try {
+        await agent.handleDBUpdate(event);
+      } catch (err) {
+        console.warn(`[DBEvent][Agent:${agentName}] failed to handle update`, err);
       }
     }
   });
@@ -19,28 +51,24 @@ export function wireAgentsToDB() {
   eventBus.subscribe("db:delete", async (event: any) => {
     for (const agentName in agentManager) {
       const agent = agentManager[agentName];
-      if (typeof agent.handleDBDelete === "function") {
-        try {
-          await agent.handleDBDelete(event);
-        } catch (err) {
-          console.warn(`[DBEvent] ${agentName} failed to handle delete`, err);
-        }
+      try {
+        await agent.handleDBDelete(event);
+      } catch (err) {
+        console.warn(`[DBEvent][Agent:${agentName}] failed to handle delete`, err);
       }
     }
   });
 }
 
-// Subscribe engines to DB events if they need it
-export function wireEnginesToDB() {
+// Subscribe all engines to DB events
+function wireEnginesToDB() {
   eventBus.subscribe("db:update", async (event: any) => {
     for (const engineName in engineManager) {
       const engine = engineManager[engineName];
-      if (typeof engine.handleDBUpdate === "function") {
-        try {
-          await engine.handleDBUpdate(event);
-        } catch (err) {
-          console.warn(`[DBEvent] ${engineName} failed to handle update`, err);
-        }
+      try {
+        await engine.handleDBUpdate(event);
+      } catch (err) {
+        console.warn(`[DBEvent][Engine:${engineName}] failed to handle update`, err);
       }
     }
   });
@@ -48,20 +76,20 @@ export function wireEnginesToDB() {
   eventBus.subscribe("db:delete", async (event: any) => {
     for (const engineName in engineManager) {
       const engine = engineManager[engineName];
-      if (typeof engine.handleDBDelete === "function") {
-        try {
-          await engine.handleDBDelete(event);
-        } catch (err) {
-          console.warn(`[DBEvent] ${engineName} failed to handle delete`, err);
-        }
+      try {
+        await engine.handleDBDelete(event);
+      } catch (err) {
+        console.warn(`[DBEvent][Engine:${engineName}] failed to handle delete`, err);
       }
     }
   });
 }
 
-// Initialize wiring
+// Main initializer
 export function initializeDBWiring() {
+  addDefaultDBHandlersToAgents();
+  addDefaultDBHandlersToEngines();
   wireAgentsToDB();
   wireEnginesToDB();
-  console.log("[DBWiring] All engines and agents wired to DB events");
-}
+  console.log("[DBWiring] All engines and agents wired with default DB handlers");
+                                         }
