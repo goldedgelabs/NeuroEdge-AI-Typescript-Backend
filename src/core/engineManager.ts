@@ -12,7 +12,7 @@
 
 import { DoctrineEngine } from "../engines/DoctrineEngine/index";
 
-// Import all 22 engines
+// Import all 25 engines
 import { SelfImprovementEngine } from "../engines/SelfImprovementEngine/index";
 import { PredictiveEngine } from "../engines/PredictiveEngine/index";
 import { CodeEngine } from "../engines/CodeEngine/index";
@@ -34,6 +34,11 @@ import { PersonaEngine } from "../engines/PersonaEngine/index";
 import { CreativityEngine } from "../engines/CreativityEngine/index";
 import { OrchestrationEngine } from "../engines/OrchestrationEngine/index";
 import { SearchEngine } from "../engines/SearchEngine/index";
+
+// --- NEW ENGINES ---
+import { HealthEngine } from "../engines/HealthEngine/index";
+import { DeviceProtectionEngine } from "../engines/DeviceProtectionEngine/index";
+import { GoldEdgeIntegrationEngine } from "../engines/GoldEdgeIntegrationEngine/index";
 
 export const engineManager: Record<string, any> = {};
 const doctrine = new DoctrineEngine();
@@ -114,7 +119,7 @@ export async function runEngineChain(chain: { engine: string; input?: any }[]) {
 }
 
 // -----------------------------
-// Register all 22 engines
+// Register all 25 engines
 // -----------------------------
 registerEngine("SelfImprovementEngine", new SelfImprovementEngine());
 registerEngine("PredictiveEngine", new PredictiveEngine());
@@ -137,4 +142,10 @@ registerEngine("PersonaEngine", new PersonaEngine());
 registerEngine("CreativityEngine", new CreativityEngine());
 registerEngine("OrchestrationEngine", new OrchestrationEngine());
 registerEngine("SearchEngine", new SearchEngine());
-registerEngine("DoctrineEngine", doctrine); // Doctrine itself is also registered
+
+// --- NEW ---
+registerEngine("HealthEngine", new HealthEngine());
+registerEngine("DeviceProtectionEngine", new DeviceProtectionEngine());
+registerEngine("GoldEdgeIntegrationEngine", new GoldEdgeIntegrationEngine());
+
+registerEngine("DoctrineEngine", doctrine);
