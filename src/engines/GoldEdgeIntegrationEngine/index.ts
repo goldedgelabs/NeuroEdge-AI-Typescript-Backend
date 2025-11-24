@@ -1,27 +1,26 @@
 import { EngineBase } from "../EngineBase";
 import { logger } from "../../utils/logger";
-import { survivalCheck } from "./survival_check";
-import { utils } from "./utils";
 
 export class GoldEdgeIntegrationEngine extends EngineBase {
   constructor() {
     super();
-    survivalCheck(this);
+    this.survivalCheck();
+  }
+
+  async survivalCheck() {
+    logger.log("GoldEdgeIntegrationEngine active: ready to integrate apps...");
   }
 
   async run(input: any) {
-    logger.log("[GoldEdgeIntegrationEngine] Running with input:", input);
-    // Placeholder: integrate with GoldEdge apps, browser, etc.
-    return { success: true, data: input };
+    logger.log("GoldEdgeIntegrationEngine processing input:", input);
+    const agentManager = (globalThis as any).__NE_AGENT_MANAGER;
+    if (agentManager?.GoldEdgeIntegrationAgent) {
+      await agentManager.GoldEdgeIntegrationAgent.integrate(input);
+    }
+    return { status: "GoldEdgeIntegrationEngine completed task" };
   }
 
   async recover(err: any) {
-    logger.error("[GoldEdgeIntegrationEngine] Recovery triggered:", err);
+    logger.error("GoldEdgeIntegrationEngine recovered from error:", err);
   }
-
-  async checkIntegration() {
-    return survivalCheck(this);
-  }
-
-  utils = utils;
-      }
+}
