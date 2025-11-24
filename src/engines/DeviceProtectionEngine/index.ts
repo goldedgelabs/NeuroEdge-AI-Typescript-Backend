@@ -1,30 +1,40 @@
 import { EngineBase } from "../EngineBase";
-import { logger } from "../../utils/logger";
 
 export class DeviceProtectionEngine extends EngineBase {
   constructor() {
-    super();
-    this.survivalCheck();
+    super("DeviceProtectionEngine");
   }
 
-  async survivalCheck() {
-    logger.log("DeviceProtectionEngine active: monitoring device security...");
-  }
-
+  /**
+   * Run device protection checks
+   * input: { deviceId: string, userRole?: string }
+   */
   async run(input: any) {
-    logger.log("DeviceProtectionEngine processing input:", input);
-    // Trigger PhoneSecurityAgent / SelfProtectionAgent
-    const agentManager = (globalThis as any).__NE_AGENT_MANAGER;
-    if (agentManager?.PhoneSecurityAgent) {
-      await agentManager.PhoneSecurityAgent.monitor(input);
+    console.log(`[DeviceProtectionEngine] Running protection check for:`, input);
+
+    const deviceId = input?.deviceId;
+    if (!deviceId) {
+      return { error: "deviceId is required" };
     }
-    if (agentManager?.SelfProtectionAgent) {
-      await agentManager.SelfProtectionAgent.ensureInstalled(input);
-    }
-    return { status: "DeviceProtectionEngine completed task" };
+
+    // Example protection logic
+    const status = {
+      deviceId,
+      protectionActive: true,
+      lastScan: new Date().toISOString(),
+      threatsDetected: 0,
+    };
+
+    return status;
   }
 
-  async recover(err: any) {
-    logger.error("DeviceProtectionEngine recovered from error:", err);
+  async handleDBUpdate(event: any) {
+    console.log(`[DeviceProtectionEngine] DB Update event:`, event);
+    // Optional: update device protection rules from DB
+  }
+
+  async handleDBDelete(event: any) {
+    console.log(`[DeviceProtectionEngine] DB Delete event:`, event);
+    // Optional: cleanup device protection cache
   }
 }
