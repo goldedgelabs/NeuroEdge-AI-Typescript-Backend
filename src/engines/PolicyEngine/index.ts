@@ -1,49 +1,52 @@
-// src/engines/PolicyEngine/index.ts
 import { EngineBase } from "../EngineBase";
-
-interface Action {
-    type: string;
-    target?: string;
-    user?: string;
-    agent?: string;
-}
+import { logger } from "../../utils/logger";
 
 export class PolicyEngine extends EngineBase {
-    name = "PolicyEngine";
+  constructor() {
+    super();
+    this.name = "PolicyEngine";
+    this.survivalCheck();
+  }
 
-    constructor() {
-        super();
+  async survivalCheck() {
+    logger.info(`[${this.name}] Performing survival check...`);
+    // Ensure policy rules are loaded
+    return true;
+  }
+
+  /**
+   * run function
+   * @param input - { action: string, role: string, context?: any }
+   */
+  async run(input: { action: string; role: string; context?: any }) {
+    logger.info(`[${this.name}] Evaluating policy for action: ${input.action}`);
+
+    // Simple mock policy evaluation
+    const allowedRoles = ["admin", "founder"];
+    const isAllowed = allowedRoles.includes(input.role);
+
+    return {
+      action: input.action,
+      allowed: isAllowed,
+      message: isAllowed
+        ? "Action permitted by PolicyEngine"
+        : "Action denied by PolicyEngine",
+    };
+  }
+
+  async recover(err: any) {
+    logger.error(`[${this.name}] Error recovered:`, err);
+    return { status: "recovered", message: "PolicyEngine recovered" };
+  }
+
+  async talkTo(engineName: string, method: string, payload: any) {
+    const engine = (globalThis as any).__NE_ENGINE_MANAGER[engineName];
+    if (engine && typeof engine[method] === "function") {
+      return engine[method](payload);
     }
-
-    checkDoctrine(action: Action) {
-        // Example Doctrine rules
-        const prohibitedActions = ["replicateDoctrine", "reverseEngineerCore"];
-        if (prohibitedActions.includes(action.type)) {
-            return {
-                allowed: false,
-                reason: `Action "${action.type}" violates Doctrine policy.`,
-            };
-        }
-
-        return { allowed: true };
-    }
-
-    founderOverride(action: Action, founderKey: string) {
-        // Founder can bypass policy using secret key
-        if (founderKey === process.env.FOUNDER_KEY) {
-            return { allowed: true, overridden: true };
-        }
-        return this.checkDoctrine(action);
-    }
-
-    auditAction(action: Action, outcome: string) {
-        // Store audit logs in memory or DB (can integrate with AnalyticsEngine)
-        const log = {
-            action,
-            outcome,
-            timestamp: new Date().toISOString(),
-        };
-        console.log("[PolicyEngine Audit]", log);
-        return log;
-    }
+    return null;
+  }
 }
+
+// Optional: register immediately
+// registerEngine("PolicyEngine", new PolicyEngine());
