@@ -1,28 +1,41 @@
-import { edgeDB } from "./edge/edgeDB";
-import { sharedDB } from "./shared/sharedDB";
+// src/db/dbManager.ts
+import { publish } from "../core/engineManager"; // EventBus from engineManager
 
-export const db = {
-  async get(collection: string, key: string, location: "edge" | "shared" = "edge") {
-    return location === "edge"
-      ? await edgeDB.get(collection, key)
-      : await sharedDB.get(collection, key);
-  },
+interface DBRecord {
+  id: string;
+  [key: string]: any;
+}
 
-  async set(collection: string, key: string, value: any, location: "edge" | "shared" = "edge") {
-    return location === "edge"
-      ? await edgeDB.set(collection, key, value)
-      : await sharedDB.set(collection, key, value);
-  },
+type DBStore = Record<string, Record<string, DBRecord>>; // collection → id → record
 
-  async delete(collection: string, key: string, location: "edge" | "shared" = "edge") {
-    return location === "edge"
-      ? await edgeDB.delete(collection, key)
-      : await sharedDB.delete(collection, key);
-  },
+class DBManager {
+  private edge: DBStore = {};
+  private shared: DBStore = {};
 
-  async getAll(collection: string, location: "edge" | "shared" = "edge") {
-    return location === "edge"
-      ? await edgeDB.getAll(collection)
-      : await sharedDB.getAll(collection);
+  async set(collection: string, id: string, record: DBRecord, target: "edge" | "shared" = "edge") {
+    const store = target === "edge" ? this.edge : this.shared;
+    if (!store[collection]) store[collection] = {};
+    store[collection][id] = record;
+
+    // Emit DB event for subscribers
+    publish("db:update", { collection, key: id, value: record, target });
   }
-};
+
+  async get(collection: string, id: string, target: "edge" | "shared" = "edge") {
+    const store = target === "edge" ? this.edge : this.shared;
+    return store[collection]?.[id] ?? null;
+  }
+
+  async getAll(collection: string, target: "edge" | "shared" = "edge") {
+    const store = target === "edge" ? this.edge : this.shared;
+    return Object.values(store[collection] || {});
+  }
+
+  async delete(collection: string, id: string, target: "edge" | "shared" = "edge") {
+    const store = target === "edge" ? this.edge : this.shared;
+    delete store[collection]?.[id];
+    publish("db:delete", { collection, key: id, target });
+  }
+}
+
+export const db = new DBManager();
