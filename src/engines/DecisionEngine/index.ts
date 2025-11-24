@@ -1,19 +1,47 @@
 import { EngineBase } from "../EngineBase";
-import { survivalCheck } from "./survival_check";
 
 export class DecisionEngine extends EngineBase {
-    name = "DecisionEngine";
+  constructor() {
+    super("DecisionEngine");
+  }
 
-    async run(input: { actions: string[]; context?: any }) {
-        const check = survivalCheck();
-        if (!check.memorySafe) return { blocked: true };
+  /**
+   * Run a decision-making process
+   * input: { options: [], criteria: {} }
+   */
+  async run(input: any) {
+    console.log(`[DecisionEngine] Running decision with input:`, input);
 
-        // Mock decision-making logic
-        const results = input.actions.map((action) => ({
-            action,
-            score: Math.random()
-        }));
+    const options: any[] = input?.options || [];
+    const criteria: Record<string, any> = input?.criteria || {};
 
-        return { results, bestAction: results.sort((a,b)=>b.score-a.score)[0] };
-    }
+    // Simple scoring example
+    const scoredOptions = options.map(option => {
+      let score = 0;
+      for (const key in criteria) {
+        if (option[key] !== undefined) {
+          score += option[key] * criteria[key];
+        }
+      }
+      return { option, score };
+    });
+
+    // Sort descending by score
+    scoredOptions.sort((a, b) => b.score - a.score);
+
+    return {
+      bestOption: scoredOptions[0]?.option || null,
+      scoredOptions,
+    };
+  }
+
+  async handleDBUpdate(event: any) {
+    console.log(`[DecisionEngine] DB Update event:`, event);
+    // Optional: reevaluate decisions
+  }
+
+  async handleDBDelete(event: any) {
+    console.log(`[DecisionEngine] DB Delete event:`, event);
+    // Optional: cleanup related decision cache
+  }
 }
