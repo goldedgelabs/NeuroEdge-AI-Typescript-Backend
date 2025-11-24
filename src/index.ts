@@ -10,7 +10,7 @@
 
 import { engineManager, registerEngine, runEngineChain, eventBus as engineEventBus } from "./core/engineManager";
 import { agentManager, registerAgent } from "./core/agentManager";
-
+import "./core/engineAgentConnector";
 // Engines
 import { SelfImprovementEngine } from "./engines/SelfImprovementEngine";
 import { PredictiveEngine } from "./engines/PredictiveEngine";
