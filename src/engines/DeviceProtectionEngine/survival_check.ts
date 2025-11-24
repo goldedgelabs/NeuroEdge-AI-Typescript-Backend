@@ -1,5 +1,3 @@
-export function survivalCheck() {
-  // basic survival check
-  console.log("[SurvivalCheck] Engine operational");
-  return { ok: true };
+export function survivalCheck(engine: any) {
+  return { healthy: true, engine: engine.constructor.name };
 }
