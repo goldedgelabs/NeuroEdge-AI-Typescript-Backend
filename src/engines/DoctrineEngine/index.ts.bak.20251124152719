@@ -1,0 +1,32 @@
+import { doctrineRules } from "./doctrineRules";
+import { monitorFolders } from "./folderMonitor";
+import { alertFounder } from "./founderAlerts";
+import { runInSandbox } from "./sandbox";
+
+export class DoctrineEngine {
+    name = "DoctrineEngine";
+
+    constructor() {
+        console.log(`[DoctrineEngine] Initialized`);
+    }
+
+    async enforceAction(action: string, targetFolder: string, userRole: string) {
+        // 1. Check doctrine rules
+        const allowed = doctrineRules(action, userRole);
+        if (!allowed) {
+            alertFounder(`Unauthorized action attempted: ${action} by ${userRole}`);
+            return { success: false, message: "Action blocked by Doctrine" };
+        }
+
+        // 2. Monitor folder
+        const safe = monitorFolders(targetFolder);
+        if (!safe) {
+            alertFounder(`Folder contains restricted content: ${targetFolder}`);
+            return { success: false, message: "Folder action blocked" };
+        }
+
+        // 3. Run action in sandbox
+        const result = await runInSandbox(action, targetFolder);
+        return { success: true, result };
+    }
+}

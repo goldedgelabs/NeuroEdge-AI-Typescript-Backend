@@ -1,0 +1,33 @@
+// src/engines/VoiceEngine/index.ts
+import { EngineBase } from "../EngineBase";
+import { survivalCheck } from "./survival_check";
+import { convertSpeechToText } from "./sttService";
+import { convertTextToSpeech } from "./ttsService";
+import { detectEmotion } from "./emotionAnalyzer";
+import { logger } from "../../utils/logger";
+
+export class VoiceEngine extends EngineBase {
+    name = "VoiceEngine";
+
+    constructor() {
+        super();
+        const status = survivalCheck();
+        if (!status.online) logger.warn(`[${this.name}] Offline mode activated`);
+        logger.log(`[${this.name}] Initialized`);
+    }
+
+    async speechToText(audioBuffer: Buffer, userId?: string) {
+        const text = await convertSpeechToText(audioBuffer);
+        return { text, userId };
+    }
+
+    async textToSpeech(text: string, voiceOptions?: any) {
+        const audio = await convertTextToSpeech(text, voiceOptions);
+        return audio;
+    }
+
+    async analyzeEmotion(audioBuffer: Buffer) {
+        const emotions = await detectEmotion(audioBuffer);
+        return emotions;
+    }
+          }

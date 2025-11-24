@@ -1,0 +1,16 @@
+import { EngineBase } from "../EngineBase";
+import { plannerEngineHelper } from "./utils";
+
+export class PlannerEngine extends EngineBase {
+  name = "PlannerEngine";
+
+  async run(input: any) {
+    try {
+      // Core engine logic (placeholder)
+      return plannerEngineHelper(input);
+    } catch (err) {
+      await this.recover(err); // triggers self-healing
+      return { error: "Recovered from failure" };
+    }
+  }
+}

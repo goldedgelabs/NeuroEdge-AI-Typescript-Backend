@@ -1,0 +1,16 @@
+import { EngineBase } from "../EngineBase";
+import { conversationEngineHelper } from "./utils";
+
+export class ConversationEngine extends EngineBase {
+  name = "ConversationEngine";
+
+  async run(input: any) {
+    try {
+      // Core engine logic (placeholder)
+      return conversationEngineHelper(input);
+    } catch (err) {
+      await this.recover(err); // triggers self-healing
+      return { error: "Recovered from failure" };
+    }
+  }
+}

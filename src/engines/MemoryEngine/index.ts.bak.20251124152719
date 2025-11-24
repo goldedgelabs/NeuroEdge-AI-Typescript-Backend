@@ -1,0 +1,34 @@
+// src/engines/MemoryEngine/index.ts
+import { EngineBase } from "../EngineBase";
+import { survivalCheck } from "./survival_check";
+import { addMemory, getMemory, deleteMemory } from "./memoryStore";
+import { createEmbedding } from "./embeddingService";
+import { logger } from "../../utils/logger";
+
+export class MemoryEngine extends EngineBase {
+    name = "MemoryEngine";
+
+    constructor() {
+        super();
+        logger.log(`[${this.name}] Initialized`);
+        const status = survivalCheck();
+        if (!status.online) logger.warn(`[${this.name}] Offline mode activated`);
+    }
+
+    async storeMemory(userId: string, content: string, metadata?: any) {
+        const embedding = await createEmbedding(content);
+        addMemory(userId, content, embedding, metadata);
+        return { userId, embedding };
+    }
+
+    async retrieveMemory(userId: string, query: string, topK = 5) {
+        const embedding = await createEmbedding(query);
+        const results = getMemory(userId, embedding, topK);
+        return results;
+    }
+
+    async clearMemory(userId: string) {
+        deleteMemory(userId);
+        return { userId, cleared: true };
+    }
+}

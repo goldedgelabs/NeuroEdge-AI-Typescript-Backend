@@ -1,0 +1,16 @@
+import { EngineBase } from "../EngineBase";
+import { dataIngestEngineHelper } from "./utils";
+
+export class DataIngestEngine extends EngineBase {
+  name = "DataIngestEngine";
+
+  async run(input: any) {
+    try {
+      // Core engine logic (placeholder)
+      return dataIngestEngineHelper(input);
+    } catch (err) {
+      await this.recover(err); // triggers self-healing
+      return { error: "Recovered from failure" };
+    }
+  }
+}

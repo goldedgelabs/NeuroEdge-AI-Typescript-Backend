@@ -1,0 +1,46 @@
+// src/engines/CodeEngine/index.ts
+import { EngineBase } from "../EngineBase";
+import { survivalCheck } from "./survival_check";
+import { optimizeCode } from "./optimizer";
+import { runSandbox } from "./sandbox";
+import { logger } from "../../utils/logger";
+
+export class CodeEngine extends EngineBase {
+    name = "CodeEngine";
+
+    constructor() {
+        super();
+        logger.log(`[${this.name}] Initialized`);
+        this.init();
+    }
+
+    private init() {
+        const status = survivalCheck();
+        if (!status.online) {
+            logger.warn(`[${this.name}] Offline mode activated`);
+        }
+    }
+
+    generateCode(language: string, prompt: string) {
+        logger.log(`[${this.name}] Generating code for language: ${language}`);
+        // placeholder for real LLM or AI model integration
+        return `// Generated ${language} code for: ${prompt}`;
+    }
+
+    optimize(code: string) {
+        logger.log(`[${this.name}] Optimizing code`);
+        return optimizeCode(code);
+    }
+
+    run(code: string, language: string) {
+        logger.log(`[${this.name}] Running code in sandbox`);
+        return runSandbox(code, language);
+    }
+
+    runFullPipeline(language: string, prompt: string) {
+        const code = this.generateCode(language, prompt);
+        const optimized = this.optimize(code);
+        const result = this.run(optimized, language);
+        return { code: optimized, result };
+    }
+    }

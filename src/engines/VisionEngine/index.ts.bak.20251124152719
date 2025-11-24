@@ -1,0 +1,30 @@
+// src/engines/VisionEngine/index.ts
+import { EngineBase } from "../EngineBase";
+import { survivalCheck } from "./survival_check";
+import { performOCR } from "./ocr";
+import { analyzeImage } from "./analyzer";
+import { logger } from "../../utils/logger";
+
+export class VisionEngine extends EngineBase {
+    name = "VisionEngine";
+
+    constructor() {
+        super();
+        logger.log(`[${this.name}] Initialized`);
+        this.init();
+    }
+
+    private init() {
+        const status = survivalCheck();
+        if (!status.online) {
+            logger.warn(`[${this.name}] Offline mode activated`);
+        }
+    }
+
+    analyze(input: Buffer | string) {
+        logger.log(`[${this.name}] Analyzing input`);
+        const analysis = analyzeImage(input);
+        const text = performOCR(input);
+        return { analysis, text };
+    }
+}

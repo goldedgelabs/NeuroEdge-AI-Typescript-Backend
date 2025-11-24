@@ -1,0 +1,36 @@
+import { EngineBase } from "../EngineBase";
+import { survivalCheck } from "./survival_check";
+import { optimizeEngines } from "./optimizer";
+
+/**
+ * SelfImprovementEngine
+ * Optimizes NeuroEdge engines, agents, and workflows automatically.
+ * Integrates with Doctrine + Survival checks.
+ */
+export class SelfImprovementEngine extends EngineBase {
+    name = "SelfImprovementEngine";
+
+    /**
+     * Main execution method.
+     * Checks survival, then runs optimization routines.
+     */
+    async run(input?: any) {
+        const check = survivalCheck();
+
+        if (!check.memorySafe) {
+            return {
+                blocked: true,
+                reason: "Engine not safe to run due to memory or offline constraints",
+            };
+        }
+
+        // Perform optimization across all engines and agents
+        const result = optimizeEngines(input);
+
+        return {
+            status: "success",
+            timestamp: new Date(),
+            result,
+        };
+    }
+          }

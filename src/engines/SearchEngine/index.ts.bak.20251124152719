@@ -1,0 +1,16 @@
+import { EngineBase } from "../EngineBase";
+import { searchEngineHelper } from "./utils";
+
+export class SearchEngine extends EngineBase {
+  name = "SearchEngine";
+
+  async run(input: any) {
+    try {
+      // Core engine logic (placeholder)
+      return searchEngineHelper(input);
+    } catch (err) {
+      await this.recover(err); // triggers self-healing
+      return { error: "Recovered from failure" };
+    }
+  }
+}

@@ -1,0 +1,16 @@
+import { EngineBase } from "../EngineBase";
+import { monitoringEngineHelper } from "./utils";
+
+export class MonitoringEngine extends EngineBase {
+  name = "MonitoringEngine";
+
+  async run(input: any) {
+    try {
+      // Core engine logic (placeholder)
+      return monitoringEngineHelper(input);
+    } catch (err) {
+      await this.recover(err); // triggers self-healing
+      return { error: "Recovered from failure" };
+    }
+  }
+}

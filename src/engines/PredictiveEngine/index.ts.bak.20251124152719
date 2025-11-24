@@ -1,0 +1,23 @@
+// src/engines/PredictiveEngine/index.ts
+import { EngineBase } from "../EngineBase";
+import { logger } from "../../utils/logger";
+import { analyzeTrends, predictOutcomes } from "./utils";
+
+export class PredictiveEngine extends EngineBase {
+    name = "PredictiveEngine";
+
+    async run(input: any) {
+        logger.log(`[PredictiveEngine] Running analysis for input:`, input);
+
+        // Step 1: Analyze trends
+        const trends = analyzeTrends(input);
+
+        // Step 2: Predict outcomes based on trends
+        const predictions = predictOutcomes(trends);
+
+        return {
+            trends,
+            predictions,
+        };
+    }
+}
