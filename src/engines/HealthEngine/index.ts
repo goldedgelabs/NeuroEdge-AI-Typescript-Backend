@@ -24,4 +24,21 @@ export class HealthEngine extends EngineBase {
   async recover(err: any) {
     logger.error("HealthEngine recovered from error:", err);
   }
+  import { db } from "../../db/dbManager";
+
+export class HealthEngine {
+  async run(input: any) {
+    const medicine = {
+      id: input.id,
+      name: input.name,
+      dosage: input.dosage,
+      manufacturer: input.manufacturer
+    };
+    // Write to DB (edge)
+    await db.set("medicine", medicine.id, medicine, "edge");
+
+    // Event bus triggers MedicineManagementAgent automatically
+    return medicine;
+  }
+}
 }
