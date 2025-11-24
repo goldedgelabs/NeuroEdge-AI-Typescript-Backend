@@ -1,19 +1,24 @@
-import {{ EngineBase }} from "../EngineBase";
-import {{ logger }} from "../../utils/logger";
+import { EngineBase } from "../EngineBase";
 
-export class DoctrineEngine extends EngineBase {{
-  name = "DoctrineEngine";
+export class DoctrineEngine extends EngineBase {
+  constructor() {
+    super("DoctrineEngine");
+  }
 
-  async enforceAction(action: string, folder: string, role: string) {{
-    logger.info(`[Doctrine] enforceAction called:`, action, folder, role);
-    const blocked = action.toLowerCase().includes("danger") && role !== "admin";
-    if (blocked) {{
-      return {{ success: false, message: "Doctrine: action not allowed for role" }};
-    }}
-    return {{ success: true }};
-  }}
-
-  async run(input: any) {{
-    return {{ engine: this.name, ok: true }};
-  }}
-}}
+  /**
+   * Enforce rules for any engine or agent action
+   * action: string (e.g., "PlannerEngine.run")
+   * folder: string (optional)
+   * role: string (optional)
+   */
+  async enforceAction(action: string, folder: string = "", role: string = "user") {
+    // Example enforcement logic
+    // You can expand this with real doctrine rules
+    console.log(`[DoctrineEngine] Checking action: ${action}, role: ${role}`);
+    
+    const allowed = true; // implement your own rules here
+    
+    if (allowed) return { success: true };
+    return { success: false, message: `Action ${action} is not permitted for role ${role}` };
+  }
+}
