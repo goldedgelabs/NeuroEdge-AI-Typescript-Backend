@@ -12,7 +12,7 @@
 
 import { DoctrineEngine } from "../engines/DoctrineEngine/index";
 
-// Import all 25 engines
+// Import all engines
 import { SelfImprovementEngine } from "../engines/SelfImprovementEngine/index";
 import { PredictiveEngine } from "../engines/PredictiveEngine/index";
 import { CodeEngine } from "../engines/CodeEngine/index";
