@@ -1,33 +1,21 @@
-// src/agents/GoldEdgeIntegrationAgent.ts
 import { logger } from "../utils/logger";
-import { eventBus } from "../core/engineManager";
+import { agentManager } from "../core/agentManager";
 
 export class GoldEdgeIntegrationAgent {
   name = "GoldEdgeIntegrationAgent";
-  connectedApps: Record<string, any> = {};
 
   constructor() {
-    logger.info(`${this.name} initialized`);
+    logger.log(`[Agent Initialized] ${this.name}`);
   }
 
-  registerApp(appName: string, info: any) {
-    this.connectedApps[appName] = info;
-    logger.log(`[GoldEdgeIntegrationAgent] App registered: ${appName}`, info);
-    eventBus["goldEdge:appRegistered"]?.forEach(cb => cb({ appName, info }));
-    return { success: true };
+  async run(task: any) {
+    // Placeholder: Handle integration with GoldEdge Browser and apps
+    logger.log(`[${this.name}] Running integration task:`, task);
+    return { status: "integrated", task };
   }
 
-  sendData(appName: string, data: any) {
-    if (!this.connectedApps[appName]) {
-      return { success: false, message: "App not registered" };
-    }
-    logger.log(`[GoldEdgeIntegrationAgent] Sending data to ${appName}`, data);
-    eventBus[`goldEdge:${appName}:data`] = eventBus[`goldEdge:${appName}:data`] || [];
-    eventBus[`goldEdge:${appName}:data`].forEach(cb => cb(data));
-    return { success: true };
-  }
-
-  listApps() {
-    return this.connectedApps;
+  async recover(err: any) {
+    logger.error(`[${this.name}] Recovered from error:`, err);
+    return { recovered: true };
   }
 }
