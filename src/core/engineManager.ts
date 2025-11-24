@@ -117,33 +117,38 @@ export async function runEngineChain(chain: { engine: string; input?: any }[]) {
 }
 
 // -----------------------------
-// Register all 25 engines
+// Register all engines
 // -----------------------------
-registerEngine("SelfImprovementEngine", new SelfImprovementEngine());
-registerEngine("PredictiveEngine", new PredictiveEngine());
-registerEngine("CodeEngine", new CodeEngine());
-registerEngine("VoiceEngine", new VoiceEngine());
-registerEngine("VisionEngine", new VisionEngine());
-registerEngine("ReinforcementEngine", new ReinforcementEngine());
-registerEngine("DataIngestEngine", new DataIngestEngine());
-registerEngine("AnalyticsEngine", new AnalyticsEngine());
-registerEngine("PlannerEngine", new PlannerEngine());
-registerEngine("MemoryEngine", new MemoryEngine());
-registerEngine("ConversationEngine", new ConversationEngine());
-registerEngine("SchedulingEngine", new SchedulingEngine());
-registerEngine("RecommendationEngine", new RecommendationEngine());
-registerEngine("SecurityEngine", new SecurityEngine());
-registerEngine("MonitoringEngine", new MonitoringEngine());
-registerEngine("TranslationEngine", new TranslationEngine());
-registerEngine("SummarizationEngine", new SummarizationEngine());
-registerEngine("PersonaEngine", new PersonaEngine());
-registerEngine("CreativityEngine", new CreativityEngine());
-registerEngine("OrchestrationEngine", new OrchestrationEngine());
-registerEngine("SearchEngine", new SearchEngine());
+const allEngines = [
+  SelfImprovementEngine,
+  PredictiveEngine,
+  CodeEngine,
+  VoiceEngine,
+  VisionEngine,
+  ReinforcementEngine,
+  DataIngestEngine,
+  AnalyticsEngine,
+  PlannerEngine,
+  MemoryEngine,
+  ConversationEngine,
+  SchedulingEngine,
+  RecommendationEngine,
+  SecurityEngine,
+  MonitoringEngine,
+  TranslationEngine,
+  SummarizationEngine,
+  PersonaEngine,
+  CreativityEngine,
+  OrchestrationEngine,
+  SearchEngine,
+  PhoneSecurityEngine,
+  MedicineManagementEngine,
+  GoldEdgeIntegrationEngine
+];
 
-// 3 new engines
-registerEngine("PhoneSecurityEngine", new PhoneSecurityEngine());
-registerEngine("MedicineManagementEngine", new MedicineManagementEngine());
-registerEngine("GoldEdgeIntegrationEngine", new GoldEdgeIntegrationEngine());
+allEngines.forEach((EngineClass) =>
+  registerEngine(EngineClass.name, new EngineClass())
+);
 
-registerEngine("DoctrineEngine", doctrine); // Doctrine itself is also registered
+// Doctrine itself is also registered
+registerEngine("DoctrineEngine", doctrine);
