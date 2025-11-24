@@ -1,12 +1,28 @@
-export abstract class EngineBase {
-  name: string = "EngineBase";
+// src/engines/EngineBase.ts
+export class EngineBase {
+  name: string;
 
-  abstract run(input: any): Promise<any>;
+  constructor(name: string) {
+    this.name = name;
+  }
 
-  // Default self-healing hook
-  async recover(error?: any) {
-    console.warn(`[${this.name}] Self-healing triggered`, error);
-    // Example: reload model, reset memory, restart services
-    return true;
+  async run(input: any): Promise<any> {
+    return input; // default placeholder
+  }
+
+  // -----------------------------
+  // DB Event Handlers (optional)
+  // -----------------------------
+  async handleDBUpdate(event: any) {
+    // Default: log event, can be overridden in child engine
+    console.log(`[Engine:${this.name}] DB Update received`, event);
+  }
+
+  async handleDBDelete(event: any) {
+    console.log(`[Engine:${this.name}] DB Delete received`, event);
+  }
+
+  async recover(error: any) {
+    console.warn(`[Engine:${this.name}] Recovered from error:`, error);
   }
 }
