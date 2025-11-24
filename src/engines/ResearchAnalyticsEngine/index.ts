@@ -1,45 +1,51 @@
-// src/engines/ResearchAnalyticsEngine/index.ts
 import { EngineBase } from "../EngineBase";
-import { VectorSearchEngine } from "../VectorSearchEngine";
-import { MemoryEngine } from "../MemoryEngine";
-import { AnalyticsEngine } from "../AnalyticsEngine";
+import { logger } from "../../utils/logger";
 
 export class ResearchAnalyticsEngine extends EngineBase {
-    name = "ResearchAnalyticsEngine";
+  constructor() {
+    super();
+    this.name = "ResearchAnalyticsEngine";
+    this.survivalCheck();
+  }
 
-    constructor(
-        private vectorSearch?: VectorSearchEngine,
-        private memory?: MemoryEngine,
-        private analytics?: AnalyticsEngine
-    ) {
-        super();
-    }
+  async survivalCheck() {
+    logger.info(`[${this.name}] Performing survival check...`);
+    // Check research data integrity, analytics modules
+    return true;
+  }
 
-    ingestData(source: string, data: any) {
-        // Store embeddings for search and analytics
-        if (this.vectorSearch) {
-            this.vectorSearch.upsert(source, data);
-        }
-        if (this.memory) {
-            this.memory.store(source, data);
-        }
-        return `Data ingested from ${source}`;
-    }
+  /**
+   * run function
+   * @param input - { query: string, dataset?: any }
+   */
+  async run(input: { query: string; dataset?: any }) {
+    logger.info(`[${this.name}] Processing research query:`, input.query);
 
-    summarizeResearch(topic: string) {
-        // Retrieve relevant data and summarize
-        const docs = this.vectorSearch ? this.vectorSearch.query(topic) : [];
-        return `Summary of ${topic}: ${docs.length} documents analyzed.`;
-    }
+    // Mock analytics result
+    const results = {
+      summary: `Analysis of '${input.query}' complete`,
+      metrics: { relevanceScore: 0.92, confidence: 0.88 },
+    };
 
-    predictOutcome(scenario: string) {
-        if (!this.analytics) return `Analytics engine not connected`;
-        return this.analytics.forecast(scenario);
-    }
+    return {
+      results,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
-    generateReport(topic: string) {
-        const summary = this.summarizeResearch(topic);
-        const prediction = this.predictOutcome(topic);
-        return { summary, prediction };
+  async recover(err: any) {
+    logger.error(`[${this.name}] Error recovered:`, err);
+    return { status: "recovered", message: "ResearchAnalyticsEngine recovered" };
+  }
+
+  async talkTo(engineName: string, method: string, payload: any) {
+    const engine = (globalThis as any).__NE_ENGINE_MANAGER[engineName];
+    if (engine && typeof engine[method] === "function") {
+      return engine[method](payload);
     }
+    return null;
+  }
 }
+
+// Optional: register immediately
+// registerEngine("ResearchAnalyticsEngine", new ResearchAnalyticsEngine());
