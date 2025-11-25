@@ -5,30 +5,74 @@ import { eventBus } from "./eventBus";
 import { logger } from "../utils/logger";
 
 // -----------------------------
-// Engine → Agent Mapping Table
-// Expandable for future engines and agents
+// Full Engine → Agent Mapping
 // -----------------------------
 const engineAgentMap: Record<string, string[]> = {
-  HealthEngine: ["MedicineManagementAgent", "MonitoringAgent"],
-  VisionEngine: ["SecurityAgent", "AnalyticsAgent"],
-  VoiceEngine: ["ConversationAgent", "AnalyticsAgent"],
-  PredictiveEngine: ["RecommendationAgent", "SchedulingAgent"],
-  PlannerEngine: ["PlannerHelperAgent", "OrchestrationAgent"],
-  SecurityEngine: ["SecurityCheckAgent", "PhoneSecurityAgent"],
-  ReinforcementEngine: ["SelfImprovementAgent", "LearningAgent"],
-  DataIngestEngine: ["MemoryAgent", "AnalyticsAgent"],
-  AnalyticsEngine: ["MetricsAgent", "TelemetryAgent"],
-  CreativityEngine: ["ContentModerationAgent", "CorrectionAgent"],
-  OrchestrationEngine: ["SchedulerAgent", "PluginManagerAgent"],
-  DoctrineEngine: ["InspectionAgent"],
-  SummarizationEngine: ["AnalyticsAgent", "ResearchAgent"],
-  TranslationEngine: ["ConversationAgent", "PersonaAgent"],
-  MemoryEngine: ["AnalyticsAgent", "SelfImprovementAgent"],
-  ConversationEngine: ["PersonaAgent", "RecommendationAgent"],
-  MonitoringEngine: ["SelfProtectionAgent", "SecurityCheckAgent"],
+  // A
+  AnalyticsEngine: ["AnalyticsAgent", "MetricsAgent", "TelemetryAgent"],
+  AutoUpdateEngine: ["AutoUpdateAgent", "SelfProtectionAgent"],
+
+  // B
+  BillingEngine: ["BillingAgent", "MetricsAgent"],
+
+  // C
+  CodeEngine: ["WorkerAgent", "SelfImprovementAgent"],
+  ConversationEngine: ["ConversationAgent", "PersonaAgent", "TranslationAgent", "RecommendationAgent"],
+  CreativityEngine: ["CreativityAgent", "ContentModerationAgent", "CorrectionAgent"],
+
+  // D
+  DataIngestEngine: ["DataIngestAgent", "MemoryAgent", "AnalyticsAgent"],
+  DecisionEngine: ["DecisionAgent", "PredictiveAgent", "PlanningAgent"],
+  DeviceProtectionEngine: ["DeviceProtectionAgent", "SecurityAgent", "PhoneSecurityAgent", "SelfProtectionAgent"],
+  DoctrineEngine: ["DoctrineAgent", "InspectionAgent", "SelfImprovementAgent", "SecurityCheckAgent"],
+  DistributedTaskEngine: ["DistributedTaskAgent", "WorkerAgent"],
+
+  // E
+  EdgeDeviceEngine: ["EdgeDeviceAgent", "TelemetryAgent", "MonitoringAgent"],
+  EvolutionEngine: ["EvolutionAgent", "SelfImprovementAgent", "LearningAgent"],
+
+  // F
+  FounderEngine: ["FounderAgent", "PluginManagerAgent"],
+
+  // G
   GoldEdgeIntegrationEngine: ["GoldEdgeIntegrationAgent", "PluginHelperAgent"],
-  SelfImprovementEngine: ["LearningAgent", "SelfHealingAgent"],
-  // Add remaining engines here...
+
+  // H
+  HealthEngine: ["MedicineManagementAgent", "MonitoringAgent", "SelfHealingAgent"],
+  HotReloadEngine: ["HotReloadAgent", "PluginHelperAgent"],
+
+  // L
+  LearningEngine: ["LearningAgent", "SelfImprovementAgent"],
+
+  // M
+  MarketEngine: ["MarketAssessmentAgent", "AnalyticsAgent"],
+  MedicineManagementEngine: ["MedicineManagementAgent", "SelfImprovementAgent"],
+  MemoryEngine: ["MemoryAgent", "AnalyticsAgent"],
+  MonitoringEngine: ["MonitoringAgent", "SecurityCheckAgent", "SelfProtectionAgent"],
+  MultiModalEngine: ["VisionAgent", "VoiceAgent", "AnalyticsAgent"],
+
+  // P
+  PersonaEngine: ["PersonaAgent", "ConversationAgent", "TranslationAgent"],
+  PhoneSecurityEngine: ["PhoneSecurityAgent", "SecurityCheckAgent"],
+  PlannerEngine: ["PlannerAgent", "PlannerHelperAgent", "OrchestrationAgent"],
+  PolicyEngine: ["SecurityClearanceAgent", "DoctrineAgent", "AnalyticsAgent"],
+
+  // R
+  RealTimeRecommenderEngine: ["RecommendationAgent", "SchedulerAgent", "TelemetryAgent"],
+  ReasoningEngine: ["CriticAgent", "AnalyticsAgent"],
+  RecommendationEngine: ["RecommendationAgent", "SchedulingAgent", "PlannerHelperAgent"],
+  ResearchAnalyticsEngine: ["ResearchAgent", "AnalyticsAgent", "MetricsAgent"],
+  ResearchEngine: ["ResearchAgent", "AnalyticsAgent"],
+
+  // S
+  SchedulingEngine: ["SchedulingAgent", "SchedulerAgent", "TelemetryAgent"],
+  SecurityEngine: ["SecurityAgent", "SecurityCheckAgent", "DeviceProtectionAgent"],
+  SelfImprovementEngine: ["SelfImprovementAgent", "LearningAgent", "SelfHealingAgent"],
+  SimulationEngine: ["SimulationAgent", "AnalyticsAgent"],
+  SummarizationEngine: ["SummarizationAgent", "ResearchAgent", "AnalyticsAgent"],
+
+  // V
+  VisionEngine: ["VisionAgent", "AnalyticsAgent"],
 };
 
 // -----------------------------
@@ -52,7 +96,7 @@ eventBus.subscribe("engine:output", async (payload) => {
 });
 
 // -----------------------------
-// Helper: Add new engine → agent dynamically
+// Add new mapping dynamically
 // -----------------------------
 export function addEngineAgentMapping(engine: string, agent: string) {
   if (!engineAgentMap[engine]) engineAgentMap[engine] = [];
@@ -61,7 +105,7 @@ export function addEngineAgentMapping(engine: string, agent: string) {
 }
 
 // -----------------------------
-// Global reference for future expansion
+// Global reference
 // -----------------------------
 (globalThis as any).__NE_ENGINE_AGENT_MAPPING = {
   engineAgentMap,
