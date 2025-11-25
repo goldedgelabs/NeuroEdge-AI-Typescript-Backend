@@ -1,54 +1,69 @@
-// src/agents/MemoryAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class MemoryAgent {
-  name = "MemoryAgent";
+/**
+ * MemoryAgent
+ * -----------
+ * Handles storing, retrieving, and managing data in NeuroEdge memory.
+ */
+export class MemoryAgent extends AgentBase {
+    private memoryStore: Record<string, any> = {};
 
-  constructor() {
-    logger.log(`${this.name} initialized`);
-  }
-
-  /**
-   * Store data in MemoryEngine
-   * @param key Key for storage
-   * @param value Value to store
-   */
-  async store(key: string, value: any) {
-    const memoryEngine = engineManager["MemoryEngine"];
-    if (!memoryEngine) {
-      logger.warn(`[${this.name}] MemoryEngine not found`);
-      return { error: "MemoryEngine not found" };
+    constructor() {
+        super("MemoryAgent");
+        this.subscribeToDBEvents();
     }
 
-    try {
-      await memoryEngine.run({ action: "store", key, value });
-      logger.info(`[${this.name}] Stored data for key: ${key}`);
-      return { success: true };
-    } catch (err) {
-      logger.error(`[${this.name}] Store failed:`, err);
-      return { error: "Store failed", details: err };
-    }
-  }
-
-  /**
-   * Retrieve data from MemoryEngine
-   * @param key Key to retrieve
-   */
-  async retrieve(key: string) {
-    const memoryEngine = engineManager["MemoryEngine"];
-    if (!memoryEngine) {
-      logger.warn(`[${this.name}] MemoryEngine not found`);
-      return { error: "MemoryEngine not found" };
+    /**
+     * Subscribe to database events (if needed)
+     */
+    private subscribeToDBEvents() {
+        eventBus.subscribe("db:update", (event) => this.handleDBUpdate(event));
+        eventBus.subscribe("db:delete", (event) => this.handleDBDelete(event));
     }
 
-    try {
-      const value = await memoryEngine.run({ action: "retrieve", key });
-      logger.info(`[${this.name}] Retrieved data for key: ${key}`);
-      return value;
-    } catch (err) {
-      logger.error(`[${this.name}] Retrieve failed:`, err);
-      return { error: "Retrieve failed", details: err };
+    /**
+     * Handle database updates
+     */
+    async handleDBUpdate(event: any) {
+        const { collection, key, value } = event;
+        if (collection !== "memory") return;
+        this.memoryStore[key] = value;
+        console.log(`[MemoryAgent] Memory updated: ${key}`, value);
     }
-  }
-}
+
+    /**
+     * Handle database deletion
+     */
+    async handleDBDelete(event: any) {
+        const { collection, key } = event;
+        if (collection !== "memory") return;
+        delete this.memoryStore[key];
+        console.log(`[MemoryAgent] Memory deleted: ${key}`);
+    }
+
+    /**
+     * Store a memory entry
+     */
+    async setMemory(key: string, value: any) {
+        this.memoryStore[key] = value;
+        eventBus.publish("db:update", { collection: "memory", key, value });
+        console.log(`[MemoryAgent] Memory saved: ${key}`);
+        return { success: true };
+    }
+
+    /**
+     * Retrieve memory entry
+     */
+    async getMemory(key: string) {
+        return this.memoryStore[key] || null;
+    }
+
+    /**
+     * Remove a memory entry
+     */
+    async removeMemory(key: string) {
+        delete this.memoryStore[key];
+        eventBus.publish("db:delete", { collection: "memory", key });
+        console.log(`[MemoryAgent] Memory removed: ${key}`);
+        return { success
