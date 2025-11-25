@@ -1,5 +1,5 @@
 // src/agents/InspectionAgent.ts
-import { engineManager } from "../core/engineManager";
+import { engineManager, registerEngine } from "../core/engineManager";
 import { agentManager, registerAgent, wireDBSubscriptions } from "../core/agentManager";
 import { logger } from "../utils/logger";
 import fs from "fs";
@@ -7,16 +7,15 @@ import path from "path";
 
 export class InspectionAgent {
   name = "InspectionAgent";
+  private intervalId: NodeJS.Timer | null = null;
 
   constructor() {
     logger.log(`[InspectionAgent] Initialized`);
   }
 
-  /**
-   * Recursively scan a folder for files
-   */
   private scanFolder(folderPath: string): string[] {
     let results: string[] = [];
+    if (!fs.existsSync(folderPath)) return results;
     const files = fs.readdirSync(folderPath);
     for (const file of files) {
       const fullPath = path.join(folderPath, file);
@@ -30,10 +29,7 @@ export class InspectionAgent {
     return results;
   }
 
-  /**
-   * Inspect Engines folder, identify new engines, and register them
-   */
-  public async inspectEngines(enginesFolder: string) {
+  private async inspectEngines(enginesFolder: string) {
     const engineFiles = this.scanFolder(enginesFolder);
     for (const filePath of engineFiles) {
       const EngineModule = await import(filePath);
@@ -42,18 +38,13 @@ export class InspectionAgent {
       const instance = new EngineClass();
       const name = instance.name || EngineClass.name;
       if (!engineManager[name]) {
-        // Register new engine dynamically
-        const { registerEngine } = await import("../core/engineManager");
         registerEngine(name, instance);
         logger.log(`[InspectionAgent] Engine registered: ${name}`);
       }
     }
   }
 
-  /**
-   * Inspect Agents folder, identify new agents, and register them
-   */
-  public async inspectAgents(agentsFolder: string) {
+  private async inspectAgents(agentsFolder: string) {
     const agentFiles = this.scanFolder(agentsFolder);
     for (const filePath of agentFiles) {
       const AgentModule = await import(filePath);
@@ -62,7 +53,6 @@ export class InspectionAgent {
       const instance = new AgentClass();
       const name = instance.name || AgentClass.name;
       if (!agentManager[name]) {
-        // Register new agent dynamically
         registerAgent(name, instance);
         wireDBSubscriptions(name);
         logger.log(`[InspectionAgent] Agent registered: ${name}`);
@@ -70,20 +60,19 @@ export class InspectionAgent {
     }
   }
 
-  /**
-   * Unregister removed engines/agents
-   */
-  public cleanup() {
+  private cleanup(enginesFolder: string, agentsFolder: string) {
+    // Unregister deleted engines
     for (const name of Object.keys(engineManager)) {
-      const enginePath = path.join(__dirname, "../engines", name + ".ts");
+      const enginePath = path.join(enginesFolder, name + ".ts");
       if (!fs.existsSync(enginePath)) {
         delete engineManager[name];
         logger.log(`[InspectionAgent] Engine unregistered: ${name}`);
       }
     }
 
+    // Unregister deleted agents
     for (const name of Object.keys(agentManager)) {
-      const agentPath = path.join(__dirname, "../agents", name + ".ts");
+      const agentPath = path.join(agentsFolder, name + ".ts");
       if (!fs.existsSync(agentPath)) {
         delete agentManager[name];
         logger.log(`[InspectionAgent] Agent unregistered: ${name}`);
@@ -91,14 +80,34 @@ export class InspectionAgent {
     }
   }
 
-  /**
-   * Full inspection run
-   */
-  public async run(enginesFolder: string, agentsFolder: string) {
-    logger.log(`[InspectionAgent] Starting full inspection...`);
+  public async runOnce(enginesFolder: string, agentsFolder: string) {
+    logger.log(`[InspectionAgent] Running inspection...`);
     await this.inspectEngines(enginesFolder);
     await this.inspectAgents(agentsFolder);
-    this.cleanup();
+    this.cleanup(enginesFolder, agentsFolder);
     logger.log(`[InspectionAgent] Inspection completed.`);
+  }
+
+  /**
+   * Start periodic inspection at given interval (ms)
+   */
+  public startPeriodicInspection(enginesFolder: string, agentsFolder: string, intervalMs: number = 60000) {
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.intervalId = setInterval(async () => {
+      try {
+        await this.runOnce(enginesFolder, agentsFolder);
+      } catch (err) {
+        logger.error(`[InspectionAgent] Periodic inspection error:`, err);
+      }
+    }, intervalMs);
+    logger.log(`[InspectionAgent] Periodic inspection started (every ${intervalMs} ms)`);
+  }
+
+  public stopPeriodicInspection() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      logger.log(`[InspectionAgent] Periodic inspection stopped`);
+    }
   }
     }
