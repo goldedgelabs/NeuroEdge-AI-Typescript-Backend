@@ -1,29 +1,33 @@
-// src/agents/SchedulerAgent.ts
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus, agentManager } from "../core/engineManager";
 
-export class SchedulerAgent {
-  name = "SchedulerAgent";
-
+export class SchedulerAgent extends AgentBase {
   constructor() {
-    logger.info(`${this.name} initialized`);
+    super("SchedulerAgent");
   }
 
-  // Schedule a task at a specific time
-  schedule(taskName: string, datetime: Date, payload: any) {
-    logger.log(`[${this.name}] Scheduling task: ${taskName} at ${datetime.toISOString()}`);
-    // For now, we just log. Later, integrate with actual job queue or cron system
-    return { taskName, datetime, payload, status: "scheduled" };
+  /**
+   * Run method to schedule tasks or events
+   * input example: { taskName: string, time: string, metadata?: any }
+   */
+  async run(input?: any) {
+    if (!input) return { error: "No input provided" };
+    const { taskName, time, metadata } = input;
+
+    console.log(`[SchedulerAgent] Scheduling task: ${taskName} at ${time}`);
+
+    // Example: trigger SchedulingEngine if available
+    const schedulingEngine = agentManager["SchedulingEngine"];
+    if (schedulingEngine && typeof schedulingEngine.run === "function") {
+      const result = await schedulingEngine.run({ taskName, time, metadata });
+      return { taskName, time, result };
+    }
+
+    // Fallback
+    return { taskName, time, result: null, message: "No engine available" };
   }
 
-  // Run a task immediately
-  async run(taskName: string, payload: any) {
-    logger.log(`[${this.name}] Running task: ${taskName}`);
-    // Placeholder for task execution logic
-    return { taskName, payload, status: "completed" };
-  }
-
-  // Optional recovery for errors
   async recover(err: any) {
-    logger.error(`[${this.name}] Recovering from error:`, err);
+    console.error(`[SchedulerAgent] Recovering from error:`, err);
   }
 }
