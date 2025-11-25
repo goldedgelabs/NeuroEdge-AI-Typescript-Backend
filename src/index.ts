@@ -40,6 +40,12 @@ import { GoldEdgeIntegrationEngine } from "./engines/GoldEdgeIntegrationEngine";
 import { initializeDBWiring } from "./core/dbEventWiring";
 import { initializeDBWiring } from "./core/dbEventWiring";
 
+import "./core/startup";
+import { engineManager } from "./core/engineManager";
+import { agentManager } from "./core/agentManager";
+import { logger } from "./utils/logger";
+
+logger.log("[Main] NeuroEdge system starting...");
 // Initialize DB event subscriptions for all engines & agents
 initializeDBWiring();
 
