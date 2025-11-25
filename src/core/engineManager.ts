@@ -42,7 +42,7 @@ import { GoldEdgeIntegrationEngine } from "../engines/GoldEdgeIntegrationEngine"
 import { PhoneSecurityEngine } from "../engines/PhoneSecurityEngine";
 import { PlannerHelperEngine } from "../engines/PlannerHelperEngine";
 import { TelemetryEngine } from "../engines/TelemetryEngine";
-import { SchedulerEngine } from "../engines/SchedulerEngine"];
+import { SchedulerEngine } from "../engines/SchedulerEngine";
 import { EdgeDeviceEngine } from "../engines/EdgeDeviceEngine";
 
 // -----------------------------
@@ -61,6 +61,7 @@ export function registerEngine(name: string, engineInstance: any) {
           const folderArg = args[0]?.folder || "";
           const userRole = args[0]?.role || "user";
 
+          // Doctrine enforcement
           let doctrineResult = { success: true };
           if (doctrine && typeof doctrine.enforceAction === "function") {
             doctrineResult = await doctrine.enforceAction(action, folderArg, userRole);
@@ -73,9 +74,15 @@ export function registerEngine(name: string, engineInstance: any) {
           try {
             const result = await origMethod.apply(target, args);
 
+            // Auto DB write & event publish
             if (result?.collection && result?.id) {
               await db.set(result.collection, result.id, result, "edge");
-              eventBus.publish("db:update", { collection: result.collection, key: result.id, value: result, source: name });
+              eventBus.publish("db:update", {
+                collection: result.collection,
+                key: result.id,
+                value: result,
+                source: name
+              });
               logger.log(`[EngineManager] DB updated by ${name}.${String(prop)} → ${result.collection}:${result.id}`);
             }
 
