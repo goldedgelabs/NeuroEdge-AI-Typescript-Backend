@@ -1,16 +1,24 @@
 // src/core/agentManager.ts
 /**
  * NeuroEdge Agent Manager
- * ----------------------
+ * -----------------------
  * Central registry for all agents
- * - Doctrine enforcement
- * - Self-healing
- * - DB event subscription
+ * Provides:
+ *  - Doctrine enforcement
+ *  - Self-healing
+ *  - DB integration (edge → shared)
+ *  - Event-driven notifications (eventBus)
+ *  - Automatic registration/unregistration for future agents
  */
 
-import { eventBus } from "../core/engineManager";
+import { DoctrineAgent } from "../agents/DoctrineAgent";
+import { db } from "../db/dbManager";
+import { eventBus } from "./eventBus";
+import { logger } from "../utils/logger";
 
-// Import all agents
+// -----------------------------
+// Import all 63 agents
+// -----------------------------
 import { ARVAgent } from "../agents/ARVAgent";
 import { AgentBase } from "../agents/AgentBase";
 import { AnalyticsAgent } from "../agents/AnalyticsAgent";
@@ -29,13 +37,13 @@ import { DecisionAgent } from "../agents/DecisionAgent";
 import { DeviceProtectionAgent } from "../agents/DeviceProtectionAgent";
 import { DiscoveryAgent } from "../agents/DiscoveryAgent";
 import { DistributedTaskAgent } from "../agents/DistributedTaskAgent";
-import { DoctrineAgent } from "../agents/DoctrineAgent";
+import { DoctrineAgent as DoctrineAgentClass } from "../agents/DoctrineAgent";
 import { EdgeDeviceAgent } from "../agents/EdgeDeviceAgent";
 import { EvolutionAgent } from "../agents/EvolutionAgent";
 import { FeedbackAgent } from "../agents/FeedbackAgent";
 import { FounderAgent } from "../agents/FounderAgent";
 import { GPUAgent } from "../agents/GPUAgent";
-import { GlobalMeshAgent } from "../agents/GlobalMeshAgent";
+import { GlobalMedAgent } from "../agents/GlobalMedAgent";
 import { GoldEdgeIntegrationAgent } from "../agents/GoldEdgeIntegrationAgent";
 import { HotReloadAgent } from "../agents/HotReloadAgent";
 import { InspectionAgent } from "../agents/InspectionAgent";
@@ -72,12 +80,17 @@ import { ValidationAgent } from "../agents/ValidationAgent";
 import { VerifierAgent } from "../agents/VerifierAgent";
 import { WorkerAgent } from "../agents/WorkerAgent";
 
-// Agent registry
+// -----------------------------
+// Agent Manager
+// -----------------------------
 export const agentManager: Record<string, any> = {};
 const doctrine = new DoctrineAgent();
 
+// Global reference
+(globalThis as any).__NE_AGENT_MANAGER = agentManager;
+
 // -----------------------------
-// Register agents with Doctrine & self-healing
+// Register Agents with Doctrine & self-healing
 // -----------------------------
 export function registerAgent(name: string, agentInstance: any) {
   agentManager[name] = new Proxy(agentInstance, {
@@ -95,13 +108,26 @@ export function registerAgent(name: string, agentInstance: any) {
             doctrineResult = await doctrine.enforceAction(action, folderArg, userRole);
           }
           if (!doctrineResult.success) {
-            console.warn(`[Doctrine] Action blocked: ${action}`);
+            logger.warn(`[Doctrine] Action blocked: ${action}`);
             return { blocked: true, message: doctrineResult.message };
           }
 
-          // Run original method with self-healing
           try {
-            return await origMethod.apply(target, args);
+            const result = await origMethod.apply(target, args);
+
+            // DB integration
+            if (result?.collection && result?.id) {
+              await db.set(result.collection, result.id, result, "edge");
+              eventBus.publish("db:update", {
+                collection: result.collection,
+                key: result.id,
+                value: result,
+                source: name
+              });
+              logger.log(`[AgentManager] DB updated by ${name}.${String(prop)} → ${result.collection}:${result.id}`);
+            }
+
+            return result;
           } catch (err) {
             if (typeof target.recover === "function") {
               await target.recover(err);
@@ -116,89 +142,74 @@ export function registerAgent(name: string, agentInstance: any) {
 }
 
 // -----------------------------
-// Subscribe all agents to DB events
+// Event subscriptions helpers
 // -----------------------------
-eventBus.subscribe("db:update", async (event: any) => {
-  for (const agent of Object.values(agentManager)) {
-    if (typeof agent.handleDBUpdate === "function") {
-      await agent.handleDBUpdate(event);
-    }
-  }
-});
-
-eventBus.subscribe("db:delete", async (event: any) => {
-  for (const agent of Object.values(agentManager)) {
-    if (typeof agent.handleDBDelete === "function") {
-      await agent.handleDBDelete(event);
-    }
-  }
-});
+export async function runAgentMethod(agentName: string, methodName: string, input?: any) {
+  const agent = agentManager[agentName];
+  if (!agent) throw new Error(`Agent not registered: ${agentName}`);
+  return await agent[methodName]?.(input);
+}
 
 // -----------------------------
 // Register all 63 agents
 // -----------------------------
-[
-  ARVAgent,
-  AgentBase,
-  AnalyticsAgent,
-  AntiTheftAgent,
-  AutoUpdateAgent,
-  BillingAgent,
-  CollaborationAgent,
-  CorrectionAgent,
-  ContentModerationAgent,
-  ConversationAgent,
-  CreativityAgent,
-  CriticAgent,
-  DataIngestAgent,
-  DataProcessingAgent,
-  DecisionAgent,
-  DeviceProtectionAgent,
-  DiscoveryAgent,
-  DistributedTaskAgent,
-  DoctrineAgent,
-  EdgeDeviceAgent,
-  EvolutionAgent,
-  FeedbackAgent,
-  FounderAgent,
-  GPUAgent,
-  GlobalMeshAgent,
-  GoldEdgeIntegrationAgent,
-  HotReloadAgent,
-  InspectionAgent,
-  LearningAgent,
-  LocalStorageAgent,
-  MarketAssessmentAgent,
-  MetricsAgent,
-  MonitoringAgent,
-  OfflineAgent,
-  OrchestrationAgent,
-  PersonalAgent,
-  PhoneSecurityAgent,
-  PlannerAgent,
-  PluginHelperAgent,
-  PluginManagerAgent,
-  PredictiveAgent,
-  RecommendationAgent,
-  ReinforcementAgent,
-  ResearchAgent,
-  SchedulingAgent,
-  SchedulerAgent,
-  SearchAgent,
-  SecurityClearanceAgent,
-  SecurityAgent,
-  SelfHealingAgent,
-  SelfImprovementAgent,
-  SelfProtectionAgent,
-  SimulationAgent,
-  SummarizationAgent,
-  SupervisorAgent,
-  TelemetryAgent,
-  TranslationAgent,
-  ValidationAgent,
-  VerifierAgent,
-  WorkerAgent
-].forEach((AgentClass: any) => {
-  const name = AgentClass.name.replace(".ts", "");
-  registerAgent(name, new AgentClass());
-});
+registerAgent("ARVAgent", new ARVAgent());
+registerAgent("AgentBase", new AgentBase());
+registerAgent("AnalyticsAgent", new AnalyticsAgent());
+registerAgent("AntiTheftAgent", new AntiTheftAgent());
+registerAgent("AutoUpdateAgent", new AutoUpdateAgent());
+registerAgent("BillingAgent", new BillingAgent());
+registerAgent("CollaborationAgent", new CollaborationAgent());
+registerAgent("CorrectionAgent", new CorrectionAgent());
+registerAgent("ContentModerationAgent", new ContentModerationAgent());
+registerAgent("ConversationAgent", new ConversationAgent());
+registerAgent("CreativityAgent", new CreativityAgent());
+registerAgent("CriticAgent", new CriticAgent());
+registerAgent("DataIngestAgent", new DataIngestAgent());
+registerAgent("DataProcessingAgent", new DataProcessingAgent());
+registerAgent("DecisionAgent", new DecisionAgent());
+registerAgent("DeviceProtectionAgent", new DeviceProtectionAgent());
+registerAgent("DiscoveryAgent", new DiscoveryAgent());
+registerAgent("DistributedTaskAgent", new DistributedTaskAgent());
+registerAgent("DoctrineAgent", doctrine);
+registerAgent("EdgeDeviceAgent", new EdgeDeviceAgent());
+registerAgent("EvolutionAgent", new EvolutionAgent());
+registerAgent("FeedbackAgent", new FeedbackAgent());
+registerAgent("FounderAgent", new FounderAgent());
+registerAgent("GPUAgent", new GPUAgent());
+registerAgent("GlobalMedAgent", new GlobalMedAgent());
+registerAgent("GoldEdgeIntegrationAgent", new GoldEdgeIntegrationAgent());
+registerAgent("HotReloadAgent", new HotReloadAgent());
+registerAgent("InspectionAgent", new InspectionAgent());
+registerAgent("LearningAgent", new LearningAgent());
+registerAgent("LocalStorageAgent", new LocalStorageAgent());
+registerAgent("MarketAssessmentAgent", new MarketAssessmentAgent());
+registerAgent("MetricsAgent", new MetricsAgent());
+registerAgent("MonitoringAgent", new MonitoringAgent());
+registerAgent("OfflineAgent", new OfflineAgent());
+registerAgent("OrchestrationAgent", new OrchestrationAgent());
+registerAgent("PersonalAgent", new PersonalAgent());
+registerAgent("PhoneSecurityAgent", new PhoneSecurityAgent());
+registerAgent("PlannerAgent", new PlannerAgent());
+registerAgent("PluginHelperAgent", new PluginHelperAgent());
+registerAgent("PluginManagerAgent", new PluginManagerAgent());
+registerAgent("PredictiveAgent", new PredictiveAgent());
+registerAgent("RecommendationAgent", new RecommendationAgent());
+registerAgent("ReinforcementAgent", new ReinforcementAgent());
+registerAgent("ResearchAgent", new ResearchAgent());
+registerAgent("SchedulingAgent", new SchedulingAgent());
+registerAgent("SchedulerAgent", new SchedulerAgent());
+registerAgent("SearchAgent", new SearchAgent());
+registerAgent("SecurityClearanceAgent", new SecurityClearanceAgent());
+registerAgent("SecurityAgent", new SecurityAgent());
+registerAgent("SelfHealingAgent", new SelfHealingAgent());
+registerAgent("SelfImprovementAgent", new SelfImprovementAgent());
+registerAgent("SelfProtectionAgent", new SelfProtectionAgent());
+registerAgent("SimulationAgent", new SimulationAgent());
+registerAgent("SummarizationAgent", new SummarizationAgent());
+registerAgent("SupervisorAgent", new SupervisorAgent());
+registerAgent("TelemetryAgent", new TelemetryAgent());
+registerAgent("TranslationAgent", new TranslationAgent());
+registerAgent("ValidationAgent", new ValidationAgent());
+registerAgent("VerifierAgent", new VerifierAgent());
+registerAgent("WorkerAgent", new WorkerAgent());
