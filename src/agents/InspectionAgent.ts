@@ -1,111 +1,104 @@
 // src/agents/InspectionAgent.ts
-
-import { readdirSync, statSync } from "fs";
-import { join } from "path";
 import { engineManager } from "../core/engineManager";
-import { agentManager } from "../core/agentManager";
-import { db } from "../db/dbManager";
-import { eventBus } from "../core/engineManager";
+import { agentManager, registerAgent, wireDBSubscriptions } from "../core/agentManager";
 import { logger } from "../utils/logger";
+import fs from "fs";
+import path from "path";
 
 export class InspectionAgent {
   name = "InspectionAgent";
 
   constructor() {
-    logger.log(`[${this.name}] Initialized`);
+    logger.log(`[InspectionAgent] Initialized`);
   }
 
   /**
-   * Scan a folder recursively and return .ts files
+   * Recursively scan a folder for files
    */
-  scanFolder(folderPath: string): string[] {
-    const files: string[] = [];
-    const items = readdirSync(folderPath);
-
-    items.forEach(item => {
-      const fullPath = join(folderPath, item);
-      const stats = statSync(fullPath);
-
-      if (stats.isDirectory()) {
-        files.push(...this.scanFolder(fullPath));
-      } else if (stats.isFile() && fullPath.endsWith(".ts")) {
-        files.push(fullPath);
-      }
-    });
-
-    return files;
-  }
-
-  /**
-   * Load and register all engines
-   */
-  async registerEngines(enginesFolder: string) {
-    const files = this.scanFolder(enginesFolder);
+  private scanFolder(folderPath: string): string[] {
+    let results: string[] = [];
+    const files = fs.readdirSync(folderPath);
     for (const file of files) {
-      const module = await import(file);
-      const EngineClass = module.default || Object.values(module)[0];
+      const fullPath = path.join(folderPath, file);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        results = results.concat(this.scanFolder(fullPath));
+      } else if (stat.isFile() && (file.endsWith(".ts") || file.endsWith(".js"))) {
+        results.push(fullPath);
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Inspect Engines folder, identify new engines, and register them
+   */
+  public async inspectEngines(enginesFolder: string) {
+    const engineFiles = this.scanFolder(enginesFolder);
+    for (const filePath of engineFiles) {
+      const EngineModule = await import(filePath);
+      const EngineClass = EngineModule.default || Object.values(EngineModule)[0];
       if (!EngineClass) continue;
-
-      const engineName = EngineClass.name;
-      if (!engineManager[engineName]) {
-        const instance = new EngineClass();
-        engineManager[engineName] = instance;
-        logger.log(`[InspectionAgent] Registered Engine: ${engineName}`);
+      const instance = new EngineClass();
+      const name = instance.name || EngineClass.name;
+      if (!engineManager[name]) {
+        // Register new engine dynamically
+        const { registerEngine } = await import("../core/engineManager");
+        registerEngine(name, instance);
+        logger.log(`[InspectionAgent] Engine registered: ${name}`);
       }
     }
   }
 
   /**
-   * Load and register all agents
+   * Inspect Agents folder, identify new agents, and register them
    */
-  async registerAgents(agentsFolder: string) {
-    const files = this.scanFolder(agentsFolder);
-    for (const file of files) {
-      const module = await import(file);
-      const AgentClass = module.default || Object.values(module)[0];
+  public async inspectAgents(agentsFolder: string) {
+    const agentFiles = this.scanFolder(agentsFolder);
+    for (const filePath of agentFiles) {
+      const AgentModule = await import(filePath);
+      const AgentClass = AgentModule.default || Object.values(AgentModule)[0];
       if (!AgentClass) continue;
-
-      const agentName = AgentClass.name;
-      if (!agentManager[agentName]) {
-        const instance = new AgentClass();
-        agentManager[agentName] = instance;
-        logger.log(`[InspectionAgent] Registered Agent: ${agentName}`);
+      const instance = new AgentClass();
+      const name = instance.name || AgentClass.name;
+      if (!agentManager[name]) {
+        // Register new agent dynamically
+        registerAgent(name, instance);
+        wireDBSubscriptions(name);
+        logger.log(`[InspectionAgent] Agent registered: ${name}`);
       }
     }
   }
 
   /**
-   * Handle DB update events
+   * Unregister removed engines/agents
    */
-  async handleDBUpdate(event: any) {
-    logger.log(`[InspectionAgent] DB Update:`, event);
-    // Example: trigger specific agent reactions
-    // e.g., resync new engines/agents after DB update
+  public cleanup() {
+    for (const name of Object.keys(engineManager)) {
+      const enginePath = path.join(__dirname, "../engines", name + ".ts");
+      if (!fs.existsSync(enginePath)) {
+        delete engineManager[name];
+        logger.log(`[InspectionAgent] Engine unregistered: ${name}`);
+      }
+    }
+
+    for (const name of Object.keys(agentManager)) {
+      const agentPath = path.join(__dirname, "../agents", name + ".ts");
+      if (!fs.existsSync(agentPath)) {
+        delete agentManager[name];
+        logger.log(`[InspectionAgent] Agent unregistered: ${name}`);
+      }
+    }
   }
 
   /**
-   * Handle DB delete events
+   * Full inspection run
    */
-  async handleDBDelete(event: any) {
-    logger.log(`[InspectionAgent] DB Delete:`, event);
-    // Example: unregister removed engines/agents
+  public async run(enginesFolder: string, agentsFolder: string) {
+    logger.log(`[InspectionAgent] Starting full inspection...`);
+    await this.inspectEngines(enginesFolder);
+    await this.inspectAgents(agentsFolder);
+    this.cleanup();
+    logger.log(`[InspectionAgent] Inspection completed.`);
   }
-
-  /**
-   * Wire event bus subscriptions
-   */
-  subscribeToEvents() {
-    eventBus.subscribe("db:update", this.handleDBUpdate.bind(this));
-    eventBus.subscribe("db:delete", this.handleDBDelete.bind(this));
-  }
-
-  /**
-   * Full initialization routine
-   */
-  async initialize({ agentsFolder, enginesFolder }: { agentsFolder: string; enginesFolder: string }) {
-    await this.registerEngines(enginesFolder);
-    await this.registerAgents(agentsFolder);
-    this.subscribeToEvents();
-    logger.log(`[${this.name}] Initialization complete. Engines and Agents synced.`);
-  }
-  }
+    }
