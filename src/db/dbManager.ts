@@ -1,35 +1,92 @@
+// src/db/dbManager.ts
 /**
  * NeuroEdge DB Manager
  * -------------------
- * Provides edge and shared storage with event notifications
+ * Provides:
+ * - Edge DB (local/offline)
+ * - Shared DB (global sync)
+ * - CRUD operations
+ * - Event notifications
+ * - Replication from Edge → Shared
  */
 
-export const db: Record<string, any> = {
-  edge: new Map<string, Map<string, any>>(),
-  shared: new Map<string, Map<string, any>>()
+import { eventBus } from "../core/neuroEdgeManager";
+
+interface RecordType {
+  id: string;
+  [key: string]: any;
+}
+
+interface DBLayer {
+  [collection: string]: Record<string, RecordType>;
+}
+
+// Edge and Shared DB
+const edgeDB: DBLayer = {};
+const sharedDB: DBLayer = {};
+
+export const db = {
+  // ----------------- GET -----------------
+  async get(collection: string, id: string, layer: "edge" | "shared" = "edge") {
+    const dbLayer = layer === "edge" ? edgeDB : sharedDB;
+    return dbLayer[collection]?.[id] ?? null;
+  },
+
+  async getAll(collection: string, layer: "edge" | "shared" = "edge") {
+    const dbLayer = layer === "edge" ? edgeDB : sharedDB;
+    return Object.values(dbLayer[collection] || {});
+  },
+
+  // ----------------- SET -----------------
+  async set(collection: string, id: string, value: RecordType, layer: "edge" | "shared" = "edge") {
+    const dbLayer = layer === "edge" ? edgeDB : sharedDB;
+    if (!dbLayer[collection]) dbLayer[collection] = {};
+    dbLayer[collection][id] = value;
+
+    // Notify subscribers
+    eventBus.publish("db:update", { collection, key: id, value, target: layer });
+  },
+
+  // ----------------- DELETE -----------------
+  async delete(collection: string, id: string, layer: "edge" | "shared" = "edge") {
+    const dbLayer = layer === "edge" ? edgeDB : sharedDB;
+    if (dbLayer[collection]) {
+      delete dbLayer[collection][id];
+      eventBus.publish("db:delete", { collection, key: id, target: layer });
+    }
+  },
+
+  // ----------------- REPLICATION -----------------
+  async replicateEdgeToShared(collection: string) {
+    const edgeRecords = await db.getAll(collection, "edge");
+    for (const record of edgeRecords) {
+      await db.set(collection, record.id, record, "shared");
+    }
+  },
+
+  // Optional: periodic replication
+  startPeriodicReplication(intervalMs: number = 60000) {
+    setInterval(async () => {
+      for (const collection in edgeDB) {
+        await db.replicateEdgeToShared(collection);
+      }
+    }, intervalMs);
+  },
 };
 
-import { eventBus } from "../core/engineManager";
-
-export async function set(collection: string, key: string, value: any, target: "edge" | "shared" = "edge") {
-  if (!db[target].has(collection)) db[target].set(collection, new Map());
-  db[target].get(collection)!.set(key, value);
-
-  // Publish DB update event
-  eventBus.publish("db:update", { collection, key, value, target });
+// ================== DB Event Subscription ==================
+export function subscribeToDBUpdates(callback: (event: any) => void) {
+  eventBus.subscribe("db:update", callback);
 }
 
-export async function get(collection: string, key: string, target: "edge" | "shared" = "edge") {
-  return db[target].get(collection)?.get(key) ?? null;
+export function subscribeToDBDeletes(callback: (event: any) => void) {
+  eventBus.subscribe("db:delete", callback);
 }
 
-export async function deleteRecord(collection: string, key: string, target: "edge" | "shared" = "edge") {
-  db[target].get(collection)?.delete(key);
-
-  // Publish DB delete event
-  eventBus.publish("db:delete", { collection, key, target });
-}
-
-export async function getAll(collection: string, target: "edge" | "shared" = "edge") {
-  return Array.from(db[target].get(collection)?.values() ?? []);
-}
+// ================== Example Usage ==================
+// Engines or agents can subscribe like:
+// subscribeToDBUpdates(event => {
+//   if (event.collection === "medicine") {
+//     console.log("Medicine updated:", event.key, event.value);
+//   }
+// });
