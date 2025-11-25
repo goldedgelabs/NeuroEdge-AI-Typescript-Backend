@@ -1,43 +1,74 @@
-// src/agents/AnalyticAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/eventBus";
+import { db } from "../db/dbManager";
 
-export class AnalyticAgent {
-  name = "AnalyticAgent";
-
+export class AnalyticsAgent extends AgentBase {
   constructor() {
-    logger.log(`${this.name} initialized`);
+    super({
+      id: "analytics-agent",
+      name: "Analytics Agent",
+      description: "Performs analytics on incoming data, user activity, and system performance.",
+      type: "analytics"
+    });
   }
 
   /**
-   * Analyze data using the AnalyticsEngine
-   * @param input Data to analyze
+   * Main handler — receives analytics tasks.
    */
-  async analyze(input: any) {
-    const analyticsEngine = engineManager["AnalyticsEngine"];
-    if (!analyticsEngine) {
-      logger.warn(`[${this.name}] AnalyticsEngine not found`);
-      return { error: "AnalyticsEngine not found" };
-    }
+  async handle(payload: any): Promise<any> {
+    const { action, data } = payload;
 
-    try {
-      const result = await analyticsEngine.run(input);
-      logger.info(`[${this.name}] Analysis result:`, result);
-      return result;
-    } catch (err) {
-      logger.error(`[${this.name}] Analysis failed:`, err);
-      return { error: "Analysis failed", details: err };
+    switch (action) {
+      case "log-event":
+        return this.logEvent(data);
+
+      case "summarize-events":
+        return this.summarizeEvents();
+
+      default:
+        return { error: "Unknown analytics action" };
     }
   }
 
   /**
-   * Analyze multiple datasets in sequence
+   * Store an analytics event into DB and notify subscribers.
    */
-  async batchAnalyze(inputs: any[]) {
-    const results = [];
-    for (const input of inputs) {
-      results.push(await this.analyze(input));
+  async logEvent(event: any) {
+    const id = Date.now().toString();
+
+    await db.set("analytics_events", id, event, "edge");
+
+    eventBus.publish("analytics:new-event", { id, event });
+
+    return { success: true, id };
+  }
+
+  /**
+   * Summarize events (simple version)
+   */
+  async summarizeEvents() {
+    const records = await db.getAll("analytics_events", "edge");
+
+    const total = records.length;
+    const grouped: Record<string, number> = {};
+
+    for (const record of records) {
+      const type = record.type ?? "unknown";
+      grouped[type] = (grouped[type] || 0) + 1;
     }
-    return results;
+
+    return { total, grouped };
+  }
+
+  /**
+   * Optional: subscribe this agent to automatic DB updates
+   */
+  async init() {
+    eventBus.subscribe("db:update", async (e) => {
+      if (e.collection === "analytics_events") {
+        // Example reactive behavior
+        console.log(`[AnalyticsAgent] Event updated: ${e.key}`);
+      }
+    });
   }
 }
