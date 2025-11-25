@@ -1,49 +1,79 @@
-// src/agents/LocalStorageAgent.ts
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class LocalStorageAgent {
-  name = "LocalStorageAgent";
-  private storage: Record<string, any> = {};
+/**
+ * LocalStorageAgent
+ * ---------------------
+ * Handles encrypted local storage for private users,
+ * manages read/write operations, caching, and offline support.
+ */
+export class LocalStorageAgent extends AgentBase {
+    private storage: Record<string, any> = {};
 
-  constructor() {
-    logger.info(`${this.name} initialized`);
-  }
-
-  // Set a key-value pair
-  setItem(key: string, value: any) {
-    this.storage[key] = value;
-    logger.log(`[LocalStorageAgent] Stored key '${key}'.`);
-    return { success: true };
-  }
-
-  // Get a value by key
-  getItem(key: string) {
-    if (this.storage[key] === undefined) {
-      logger.warn(`[LocalStorageAgent] Key '${key}' not found.`);
-      return null;
+    constructor() {
+        super("LocalStorageAgent");
+        this.subscribeToEvents();
     }
-    return this.storage[key];
-  }
 
-  // Remove a key
-  removeItem(key: string) {
-    if (this.storage[key]) {
-      delete this.storage[key];
-      logger.log(`[LocalStorageAgent] Removed key '${key}'.`);
-      return { success: true };
+    /**
+     * Subscribe to relevant events
+     */
+    private subscribeToEvents() {
+        eventBus.subscribe("storage:set", (data) => this.setItem(data.key, data.value, data.options));
+        eventBus.subscribe("storage:get", (data) => this.getItem(data.key));
+        eventBus.subscribe("storage:delete", (data) => this.removeItem(data.key));
     }
-    return { success: false, message: "Key not found" };
-  }
 
-  // Clear all storage
-  clear() {
-    this.storage = {};
-    logger.log(`[LocalStorageAgent] Cleared all storage.`);
-    return { success: true };
-  }
+    /**
+     * Store item locally
+     */
+    async setItem(key: string, value: any, options?: { encrypted?: boolean }) {
+        if (options?.encrypted) {
+            // Simple placeholder encryption
+            this.storage[key] = btoa(JSON.stringify(value));
+        } else {
+            this.storage[key] = value;
+        }
+        console.log(`[LocalStorageAgent] Set item: ${key}`);
+        return { success: true };
+    }
 
-  // List all keys
-  listKeys() {
-    return Object.keys(this.storage);
-  }
+    /**
+     * Retrieve item
+     */
+    async getItem(key: string) {
+        let value = this.storage[key];
+        try {
+            // Attempt decryption if possible
+            value = JSON.parse(atob(value));
+        } catch {
+            // value is plain
+        }
+        console.log(`[LocalStorageAgent] Get item: ${key}`, value);
+        return { key, value };
+    }
+
+    /**
+     * Remove item
+     */
+    async removeItem(key: string) {
+        delete this.storage[key];
+        console.log(`[LocalStorageAgent] Removed item: ${key}`);
+        return { success: true };
+    }
+
+    /**
+     * General run method
+     */
+    async run(input: any) {
+        console.log(`[LocalStorageAgent] Run called with input:`, input);
+        return { success: true };
+    }
+
+    /**
+     * Recovery from errors
+     */
+    async recover(err: any) {
+        console.warn(`[LocalStorageAgent] Recovering from error`, err);
+    }
 }
