@@ -1,0 +1,37 @@
+import { AgentBase } from "./AgentBase";
+import { DataEngine } from "../engines/DataEngine";
+import { DataIngestEngine } from "../engines/DataIngestEngine";
+
+export class DataProcessingAgent extends AgentBase {
+    private dataEngine: DataEngine;
+    private ingestEngine: DataIngestEngine;
+
+    constructor() {
+        super("DataProcessingAgent");
+        this.dataEngine = new DataEngine();
+        this.ingestEngine = new DataIngestEngine();
+    }
+
+    /**
+     * Ingests raw data from a source and normalizes it.
+     */
+    async ingest(source: string): Promise<any> {
+        return await this.ingestEngine.ingest(source);
+    }
+
+    /**
+     * Cleans and structures data for use by other agents or engines.
+     */
+    async clean(data: any): Promise<any> {
+        return await this.dataEngine.clean(data);
+    }
+
+    /**
+     * Runs full processing pipeline: ingest → clean → summarize.
+     */
+    async process(source: string): Promise<any> {
+        const raw = await this.ingest(source);
+        const cleaned = await this.clean(raw);
+        return cleaned;
+    }
+}
