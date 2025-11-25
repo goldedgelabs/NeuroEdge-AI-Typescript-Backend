@@ -1,4 +1,8 @@
 // src/engines/EngineBase.ts
+import { db } from "../db/dbManager";
+import { eventBus } from "../core/eventBus";
+import { logger } from "../utils/logger";
+
 export class EngineBase {
   name: string;
 
@@ -6,23 +10,19 @@ export class EngineBase {
     this.name = name;
   }
 
-  async run(input: any): Promise<any> {
-    return input; // default placeholder
+  async writeDB(collection: string, key: string, value: any) {
+    await db.set(collection, key, value, "edge");
+    eventBus.publish("db:update", { collection, key, value, source: this.name });
+    logger.log(`[EngineBase] ${this.name} wrote ${collection}:${key}`);
   }
 
-  // -----------------------------
-  // DB Event Handlers (optional)
-  // -----------------------------
-  async handleDBUpdate(event: any) {
-    // Default: log event, can be overridden in child engine
-    console.log(`[Engine:${this.name}] DB Update received`, event);
+  async deleteDB(collection: string, key: string) {
+    await db.delete(collection, key, "edge");
+    eventBus.publish("db:delete", { collection, key, source: this.name });
+    logger.log(`[EngineBase] ${this.name} deleted ${collection}:${key}`);
   }
 
-  async handleDBDelete(event: any) {
-    console.log(`[Engine:${this.name}] DB Delete received`, event);
-  }
-
-  async recover(error: any) {
-    console.warn(`[Engine:${this.name}] Recovered from error:`, error);
+  async recover(err: any) {
+    logger.warn(`[EngineBase] ${this.name} recovered from error:`, err);
   }
 }
