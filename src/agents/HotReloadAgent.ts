@@ -1,46 +1,50 @@
-// src/agents/HotReloadAgent.ts
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class HotReloadAgent {
-  name = "HotReloadAgent";
-  autoReloadEnabled: boolean = true;
-
-  constructor() {
-    logger.info(`${this.name} initialized`);
-  }
-
-  // Trigger hot reload
-  async reloadModule(moduleName: string) {
-    if (!this.autoReloadEnabled) {
-      logger.warn(`[HotReloadAgent] Auto-reload disabled`);
-      return { reloaded: false };
+/**
+ * HotReloadAgent
+ * ---------------------
+ * Handles hot-reloading of NeuroEdge engines and agents
+ * without requiring a full system restart.
+ */
+export class HotReloadAgent extends AgentBase {
+    constructor() {
+        super("HotReloadAgent");
+        this.subscribeToEvents();
     }
 
-    try {
-      logger.log(`[HotReloadAgent] Reloading module: ${moduleName}`);
-      // Placeholder: implement actual hot-reload logic here
-      return { reloaded: true, module: moduleName };
-    } catch (err) {
-      logger.error(`[HotReloadAgent] Reload failed:`, err);
-      await this.recover(err);
-      return { reloaded: false, error: err };
+    /**
+     * Subscribe to hot-reload trigger events
+     */
+    private subscribeToEvents() {
+        eventBus.subscribe("hotreload:trigger", (data) => this.handleHotReload(data));
+    }
+
+    /**
+     * Handle hot-reload of a specific engine or agent
+     */
+    async handleHotReload(payload: { target: string }) {
+        console.log(`[HotReloadAgent] Hot-reloading target:`, payload.target);
+        // Implement hot-reload logic here
+        // Could reload module, refresh references, reinitialize
+        return { success: true, target: payload.target };
+    }
+
+    /**
+     * General run method
+     */
+    async run(input: any) {
+        console.log(`[HotReloadAgent] Running with input:`, input);
+        if (input?.target) {
+            return await this.handleHotReload({ target: input.target });
+        }
+        return { status: "No target provided for hot reload" };
+    }
+
+    /**
+     * Recovery from errors
+     */
+    async recover(err: any) {
+        console.warn(`[HotReloadAgent] Recovering from error`, err);
     }
   }
-
-  // Enable hot reload
-  enableHotReload() {
-    this.autoReloadEnabled = true;
-    logger.log(`[HotReloadAgent] Hot reload enabled`);
-  }
-
-  // Disable hot reload
-  disableHotReload() {
-    this.autoReloadEnabled = false;
-    logger.log(`[HotReloadAgent] Hot reload disabled`);
-  }
-
-  async recover(err: any) {
-    logger.warn(`[HotReloadAgent] Recovering from error:`, err);
-    return { recovered: true };
-  }
-}
