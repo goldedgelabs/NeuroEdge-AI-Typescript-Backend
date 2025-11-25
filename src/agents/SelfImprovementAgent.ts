@@ -1,39 +1,46 @@
-// src/agents/SelfImprovementAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { engineManager, agentManager, eventBus } from "../core/engineManager";
 
-export class SelfImprovementAgent {
-  name = "SelfImprovementAgent";
-
+export class SelfImprovementAgent extends AgentBase {
   constructor() {
-    logger.log(`[SelfImprovementAgent] Initialized`);
+    super("SelfImprovementAgent");
   }
 
-  // Improve self or other agents based on data
-  async improve(input: any) {
-    logger.info(`[SelfImprovementAgent] Improving...`);
-    
-    // Example: use SelfImprovementEngine
-    const result = await engineManager.SelfImprovementEngine?.run?.({ data: input });
-    
-    // Optionally, enhance outputs of other engines
-    if (input.targetEngine && engineManager[input.targetEngine]) {
-      const enhanced = await engineManager[input.targetEngine].run?.({ data: result });
-      return enhanced;
+  /**
+   * Continuously improves NeuroEdge by analyzing engine and agent performance,
+   * suggesting optimization, or triggering upgrades.
+   * Example input: { engine?: string, agent?: string, metrics?: any }
+   */
+  async run(input?: any) {
+    if (!input) return { error: "No input provided" };
+    const { engine, agent, metrics } = input;
+
+    let results: any = {};
+
+    if (engine) {
+      const eng = engineManager[engine];
+      if (eng && typeof eng.analyze === "function") {
+        results.engine = await eng.analyze(metrics || {});
+      } else {
+        results.engine = { status: "Engine not found or no analyze() method" };
+      }
     }
 
-    return result;
+    if (agent) {
+      const ag = agentManager[agent];
+      if (ag && typeof ag.analyze === "function") {
+        results.agent = await ag.analyze(metrics || {});
+      } else {
+        results.agent = { status: "Agent not found or no analyze() method" };
+      }
+    }
+
+    // Future: can trigger engine upgrades or optimization pipelines
+    console.log(`[SelfImprovementAgent] Run results:`, results);
+    return results;
   }
 
   async recover(err: any) {
-    logger.warn(`[SelfImprovementAgent] Recovering from error`, err);
+    console.error(`[SelfImprovementAgent] Recovering from error:`, err);
   }
-
-  async talkTo(agentName: string, method: string, payload: any) {
-    const agent = (globalThis as any).__NE_AGENT_MANAGER?.[agentName];
-    if (agent && typeof agent[method] === "function") {
-      return await agent[method](payload);
-    }
-    return null;
-  }
-}
+          }
