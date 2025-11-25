@@ -1,51 +1,55 @@
-// src/agents/EdgeDeviceAgent.ts
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class EdgeDeviceAgent {
-  name = "EdgeDeviceAgent";
-  private connectedDevices: Record<string, any> = {};
-
-  constructor() {
-    logger.info(`${this.name} initialized`);
-  }
-
-  // Register a new edge device
-  registerDevice(deviceId: string, metadata: any) {
-    if (this.connectedDevices[deviceId]) {
-      logger.warn(`[EdgeDeviceAgent] Device '${deviceId}' already registered.`);
-      return { success: false, message: "Device already registered" };
+/**
+ * EdgeDeviceAgent
+ * ---------------------
+ * Manages edge devices in the network.
+ * Handles device registration, status, and execution of tasks locally.
+ */
+export class EdgeDeviceAgent extends AgentBase {
+    constructor() {
+        super("EdgeDeviceAgent");
+        this.subscribeToEvents();
     }
-    this.connectedDevices[deviceId] = metadata;
-    logger.log(`[EdgeDeviceAgent] Device '${deviceId}' registered.`);
-    return { success: true };
-  }
 
-  // Remove a device
-  removeDevice(deviceId: string) {
-    if (this.connectedDevices[deviceId]) {
-      delete this.connectedDevices[deviceId];
-      logger.log(`[EdgeDeviceAgent] Device '${deviceId}' removed.`);
-      return { success: true };
+    /**
+     * Subscribe to relevant events on the eventBus
+     */
+    private subscribeToEvents() {
+        eventBus.subscribe("task:started", (data) => this.onTaskStarted(data));
+        eventBus.subscribe("task:completed", (data) => this.onTaskCompleted(data));
     }
-    return { success: false, message: "Device not found" };
-  }
 
-  // List all connected devices
-  listDevices() {
-    return Object.keys(this.connectedDevices).map(id => ({
-      id,
-      metadata: this.connectedDevices[id],
-    }));
-  }
-
-  // Send a task to a device (placeholder)
-  sendTask(deviceId: string, task: any) {
-    if (!this.connectedDevices[deviceId]) {
-      logger.warn(`[EdgeDeviceAgent] Device '${deviceId}' not found.`);
-      return { success: false, message: "Device not found" };
+    /**
+     * Handle when a distributed task starts
+     */
+    private onTaskStarted(data: any) {
+        console.log(`[EdgeDeviceAgent] Task started on edge device:`, data);
+        // Logic to allocate task locally or on nearby edge devices
     }
-    logger.log(`[EdgeDeviceAgent] Task sent to device '${deviceId}':`, task);
-    // Integrate with task routing system later
-    return { success: true };
-  }
+
+    /**
+     * Handle when a distributed task completes
+     */
+    private onTaskCompleted(data: any) {
+        console.log(`[EdgeDeviceAgent] Task completed on edge device:`, data);
+        // Logic to update device status or logs
+    }
+
+    /**
+     * Check the status of a connected edge device
+     */
+    async checkDeviceStatus(deviceId: string) {
+        console.log(`[EdgeDeviceAgent] Checking status for device: ${deviceId}`);
+        // Placeholder: simulate device status
+        return { deviceId, status: "online" };
+    }
+
+    /**
+     * Recover from errors
+     */
+    async recover(err: any) {
+        console.warn(`[EdgeDeviceAgent] Recovering from error`, err);
+    }
 }
