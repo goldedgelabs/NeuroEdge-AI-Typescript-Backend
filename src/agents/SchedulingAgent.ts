@@ -1,53 +1,32 @@
-// src/agents/SchedulingAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { agentManager, eventBus } from "../core/engineManager";
 
-export class SchedulingAgent {
-  name = "SchedulingAgent";
-
+export class SchedulingAgent extends AgentBase {
   constructor() {
-    logger.log(`${this.name} initialized`);
+    super("SchedulingAgent");
   }
 
   /**
-   * Schedule a task using the SchedulingEngine
-   * @param task Object with task details { title, time, priority }
+   * Main method to handle scheduling requests
+   * input example: { task: string, datetime: string, metadata?: any }
    */
-  async schedule(task: { title: string; time: Date; priority?: number }) {
-    const schedEngine = engineManager["SchedulingEngine"];
-    if (!schedEngine) {
-      logger.warn(`[${this.name}] SchedulingEngine not found`);
-      return { error: "SchedulingEngine not found" };
+  async run(input?: any) {
+    if (!input) return { error: "No input provided" };
+    const { task, datetime, metadata } = input;
+
+    console.log(`[SchedulingAgent] Received task: ${task} at ${datetime}`);
+
+    // Trigger SchedulingEngine if registered
+    const schedulingEngine = agentManager["SchedulingEngine"];
+    if (schedulingEngine && typeof schedulingEngine.run === "function") {
+      const result = await schedulingEngine.run({ task, datetime, metadata });
+      return { task, datetime, result };
     }
 
-    try {
-      const result = await schedEngine.run({ action: "schedule", task });
-      logger.info(`[${this.name}] Task scheduled`);
-      return result;
-    } catch (err) {
-      logger.error(`[${this.name}] Scheduling failed:`, err);
-      return { error: "Scheduling failed", details: err };
-    }
+    return { task, datetime, result: null, message: "SchedulingEngine not available" };
   }
 
-  /**
-   * Retrieve scheduled tasks
-   * @param options Optional filter { date, priority }
-   */
-  async getTasks(options?: { date?: Date; priority?: number }) {
-    const schedEngine = engineManager["SchedulingEngine"];
-    if (!schedEngine) {
-      logger.warn(`[${this.name}] SchedulingEngine not found`);
-      return { error: "SchedulingEngine not found" };
-    }
-
-    try {
-      const tasks = await schedEngine.run({ action: "getTasks", options });
-      logger.info(`[${this.name}] Retrieved scheduled tasks`);
-      return tasks;
-    } catch (err) {
-      logger.error(`[${this.name}] Get tasks failed:`, err);
-      return { error: "Get tasks failed", details: err };
-    }
+  async recover(err: any) {
+    console.error(`[SchedulingAgent] Recovering from error:`, err);
   }
 }
