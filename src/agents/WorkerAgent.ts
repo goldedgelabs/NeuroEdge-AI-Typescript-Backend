@@ -1,54 +1,41 @@
-import { logger } from "../utils/logger";
-import { engineManager } from "../core/engineManager";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class WorkerAgent {
-  name = "WorkerAgent";
-
+export class WorkerAgent extends AgentBase {
   constructor() {
-    logger.info(`[WorkerAgent] Initialized`);
-    if (typeof (this as any).survivalCheck === "function") {
-      (this as any).survivalCheck();
-    }
+    super("WorkerAgent");
   }
 
-  // Executes a task or job
-  async execute(task: any, context: any = {}) {
-    logger.log(`[WorkerAgent] Executing task:`, task);
+  /**
+   * Executes tasks assigned by engines or other agents.
+   * Can handle async jobs, distributed tasks, or simple computations.
+   */
+  async run(input: { task: string; payload?: any }) {
+    const { task, payload } = input || {};
 
-    try {
-      // Example: use OrchestrationEngine to run sub-tasks
-      const result = await engineManager["OrchestrationEngine"].run({ task, context });
-
-      const output = {
-        task,
-        result,
-        status: "completed",
-        completedAt: new Date().toISOString(),
-      };
-
-      logger.info(`[WorkerAgent] Task execution completed`);
-      return output;
-    } catch (err) {
-      logger.error(`[WorkerAgent] Error during execution:`, err);
-      if (typeof this.recover === "function") {
-        await this.recover(err);
-      }
-      return { error: "Recovered from failure" };
+    if (!task) {
+      return { error: "WorkerAgent requires a 'task' field." };
     }
+
+    console.log(`[WorkerAgent] Executing task: ${task}`, payload);
+
+    // Simulate task execution (replace with real logic)
+    const result = await this.executeTask(task, payload);
+
+    // Publish event when task completes
+    eventBus.publish("task:completed", { task, result });
+
+    return { success: true, task, result };
+  }
+
+  private async executeTask(task: string, payload: any) {
+    // Placeholder: real task execution logic goes here
+    // Example: could call engines, perform calculations, or manage files
+    return { simulatedResult: `Task "${task}" executed successfully.` };
   }
 
   async recover(err: any) {
-    logger.warn(`[WorkerAgent] Recovery triggered:`, err);
-    // Recovery logic here
-  }
-
-  // Inter-agent communication
-  async talkTo(agentName: string, method: string, payload: any) {
-    const agent = (globalThis as any).__NE_AGENT_MANAGER?.[agentName];
-    if (agent && typeof agent[method] === "function") {
-      return agent[method](payload);
-    }
-    logger.warn(`[WorkerAgent] Agent or method not found: ${agentName}.${method}`);
-    return null;
+    console.error(`[WorkerAgent] Error executing task:`, err);
+    // Optional: retry logic or fallback
   }
 }
