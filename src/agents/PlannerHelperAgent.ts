@@ -1,33 +1,34 @@
-// src/agents/PlannerHelperAgent.ts
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus, agentManager } from "../core/engineManager";
 
-export class PlannerHelperAgent {
-  name = "PlannerHelperAgent";
-
+export class PlannerHelperAgent extends AgentBase {
   constructor() {
-    logger.info(`${this.name} initialized`);
+    super("PlannerHelperAgent");
   }
 
-  // Assist a planner agent with sub-tasks
-  assist(planId: string, subTasks: any[]) {
-    logger.log(`[${this.name}] Assisting plan: ${planId} with ${subTasks.length} sub-tasks`);
-    // Return a mapping of task status placeholders
-    return subTasks.map((task, i) => ({
-      taskId: `${planId}-${i}`,
-      task,
-      status: "pending"
-    }));
+  /**
+   * Run the agent with given input.
+   * Example: assist PlannerAgent or PlannerEngine
+   */
+  async run(input?: any) {
+    if (!input) return;
+
+    if (input.task && input.context) {
+      console.log(`[PlannerHelperAgent] Assisting task:`, input.task);
+
+      // Example: communicate with PlannerEngine
+      const plannerEngine = (globalThis as any).__NE_ENGINE_MANAGER?.PlannerEngine;
+      if (plannerEngine && typeof plannerEngine.run === "function") {
+        const result = await plannerEngine.run({ task: input.task, context: input.context });
+        console.log(`[PlannerHelperAgent] PlannerEngine returned:`, result);
+        return result;
+      }
+    }
+
+    return { message: "No task provided" };
   }
 
-  // Execute sub-task
-  async execute(taskId: string, taskPayload: any) {
-    logger.log(`[${this.name}] Executing sub-task: ${taskId}`);
-    // Placeholder execution logic
-    return { taskId, result: "done", payload: taskPayload };
-  }
-
-  // Recovery for failures
   async recover(err: any) {
-    logger.error(`[${this.name}] Recovering from error:`, err);
+    console.error(`[PlannerHelperAgent] Recovering from error:`, err);
   }
 }
