@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { engineManager, registerEngine } from "../core/engineManager";
+import { engineManager, registerEngine, eventBus } from "../core/engineManager";
 import { agentManager, registerAgent } from "../core/agentManager";
-import { eventBus } from "../core/engineManager";
+import { db } from "../db/dbManager";
 import { logger } from "../utils/logger";
 
 export class InspectionAgent {
@@ -12,9 +12,7 @@ export class InspectionAgent {
     logger.log(`[InspectionAgent] Initialized`);
   }
 
-  /**
-   * Scan a folder recursively and return all .ts files
-   */
+  /** Scan folder recursively for .ts files */
   scanFolder(folderPath: string): string[] {
     let results: string[] = [];
     const items = fs.readdirSync(folderPath);
@@ -32,45 +30,54 @@ export class InspectionAgent {
     return results;
   }
 
-  /**
-   * Dynamically load and register all engines
-   */
+  /** Dynamically register all engines */
   inspectEngines(folderPath: string) {
     const files = this.scanFolder(folderPath);
+
     files.forEach(file => {
       const EngineClass = require(file).default || require(file);
       if (!EngineClass) return;
+
       const engineName = EngineClass.name;
       if (!engineManager[engineName]) {
         logger.log(`[InspectionAgent] Registering Engine: ${engineName}`);
         registerEngine(engineName, new EngineClass());
-      } else {
-        logger.log(`[InspectionAgent] Engine already registered: ${engineName}`);
       }
     });
   }
 
-  /**
-   * Dynamically load and register all agents
-   */
+  /** Dynamically register all agents */
   inspectAgents(folderPath: string) {
     const files = this.scanFolder(folderPath);
+
     files.forEach(file => {
       const AgentClass = require(file).default || require(file);
       if (!AgentClass) return;
+
       const agentName = AgentClass.name;
       if (!agentManager[agentName]) {
         logger.log(`[InspectionAgent] Registering Agent: ${agentName}`);
-        registerAgent(agentName, new AgentClass());
-      } else {
-        logger.log(`[InspectionAgent] Agent already registered: ${agentName}`);
+        const agentInstance = new AgentClass();
+
+        // Auto-wire DB events
+        if (typeof agentInstance.handleDBUpdate === "function") {
+          eventBus.subscribe("db:update", async (event: any) => {
+            await agentInstance.handleDBUpdate(event);
+          });
+        }
+
+        if (typeof agentInstance.handleDBDelete === "function") {
+          eventBus.subscribe("db:delete", async (event: any) => {
+            await agentInstance.handleDBDelete(event);
+          });
+        }
+
+        registerAgent(agentName, agentInstance);
       }
     });
   }
 
-  /**
-   * Full inspection for all engines and agents
-   */
+  /** Full system inspection and wiring */
   runInspection() {
     logger.log(`[InspectionAgent] Running full system inspection...`);
 
@@ -80,12 +87,10 @@ export class InspectionAgent {
     this.inspectEngines(enginesFolder);
     this.inspectAgents(agentsFolder);
 
-    logger.log(`[InspectionAgent] Inspection complete.`);
+    logger.log(`[InspectionAgent] Inspection and auto-wiring complete.`);
   }
 
-  /**
-   * Unregister an engine dynamically
-   */
+  /** Unregister engine dynamically */
   unregisterEngine(name: string) {
     if (engineManager[name]) {
       delete engineManager[name];
@@ -93,13 +98,20 @@ export class InspectionAgent {
     }
   }
 
-  /**
-   * Unregister an agent dynamically
-   */
+  /** Unregister agent dynamically */
   unregisterAgent(name: string) {
     if (agentManager[name]) {
       delete agentManager[name];
       logger.log(`[InspectionAgent] Agent unregistered: ${name}`);
     }
   }
+
+  /** Replicate edge DB data to shared DB automatically */
+  async replicateEdgeToShared(collection: string) {
+    const edgeRecords = await db.getAll(collection, "edge");
+    for (const record of edgeRecords) {
+      await db.set(collection, record.id, record, "shared");
     }
+    logger.log(`[InspectionAgent] Replicated ${collection} from edge → shared`);
+  }
+}
