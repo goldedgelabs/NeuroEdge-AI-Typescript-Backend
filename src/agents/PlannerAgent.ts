@@ -1,57 +1,32 @@
-import { logger } from "../utils/logger";
-import { engineManager } from "../core/engineManager";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class PlannerAgent {
-  name = "PlannerAgent";
-
+export class PlannerAgent extends AgentBase {
   constructor() {
-    logger.info(`[PlannerAgent] Initialized`);
-    // Optional: survival check on init
-    if (typeof (this as any).survivalCheck === "function") {
-      (this as any).survivalCheck();
-    }
+    super("PlannerAgent");
   }
 
-  // Core method: run a task
-  async run(task: string | object, context: any = {}) {
-    logger.log(`[PlannerAgent] Running task:`, task);
+  async run(input?: any) {
+    console.log(`[PlannerAgent] Running planner with input:`, input);
 
-    try {
-      // Example: consult AnalyticsEngine before planning
-      const analyticsResult = await engineManager["AnalyticsEngine"].run({ task, context });
+    // Example: generate plan based on tasks or goals
+    const plan = this.generatePlan(input?.tasks || []);
 
-      // Placeholder plan generation
-      const plan = {
-        task,
-        analytics: analyticsResult,
-        status: "planned",
-        createdAt: new Date().toISOString(),
-      };
+    // Publish event for other agents or engines
+    eventBus.publish("plan:generated", plan);
 
-      logger.info(`[PlannerAgent] Plan created successfully`);
-      return plan;
-    } catch (err) {
-      logger.error(`[PlannerAgent] Error running task:`, err);
-      if (typeof this.recover === "function") {
-        await this.recover(err);
-      }
-      return { error: "Recovered from failure" };
-    }
+    return plan;
   }
 
-  // Optional recovery method
   async recover(err: any) {
-    logger.warn(`[PlannerAgent] Recovery triggered:`, err);
-    // Recovery logic can be added here
+    console.error(`[PlannerAgent] Recovering from error:`, err);
   }
 
-  // Allow inter-agent communication
-  async talkTo(agentName: string, method: string, payload: any) {
-    const agent = (globalThis as any).__NE_AGENT_MANAGER?.[agentName];
-    if (agent && typeof agent[method] === "function") {
-      return agent[method](payload);
-    }
-    logger.warn(`[PlannerAgent] Agent or method not found: ${agentName}.${method}`);
-    return null;
+  private generatePlan(tasks: any[]) {
+    // Simple placeholder plan: just order tasks by priority
+    const sortedTasks = tasks.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    const plan = sortedTasks.map((task, idx) => ({ step: idx + 1, task }));
+    console.log(`[PlannerAgent] Generated plan:`, plan);
+    return plan;
   }
 }
