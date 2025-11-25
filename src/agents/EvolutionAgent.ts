@@ -1,48 +1,55 @@
-// src/agents/EvolutionAgent.ts
-import { logger } from "../utils/logger";
-import { engineManager, eventBus } from "../core/engineManager";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class EvolutionAgent {
-  name = "EvolutionAgent";
-
-  constructor() {
-    logger.info(`${this.name} initialized`);
-  }
-
-  // Trigger adaptive improvements for engines or agents
-  async evolveComponent(componentName: string, changes: any) {
-    logger.log(`[EvolutionAgent] Evolving component: ${componentName}`, changes);
-
-    const component = engineManager[componentName];
-    if (!component) {
-      logger.warn(`[EvolutionAgent] Component not found: ${componentName}`);
-      return { success: false, message: "Component not found" };
+/**
+ * EvolutionAgent
+ * ---------------------
+ * Manages evolutionary algorithms, simulations, and iterative improvements.
+ * Can optimize processes, models, or strategies over time.
+ */
+export class EvolutionAgent extends AgentBase {
+    constructor() {
+        super("EvolutionAgent");
+        this.subscribeToEvents();
     }
 
-    if (typeof component.applyEvolution === "function") {
-      await component.applyEvolution(changes);
-      logger.info(`[EvolutionAgent] Evolution applied to ${componentName}`);
-    } else {
-      logger.warn(`[EvolutionAgent] Component ${componentName} cannot evolve automatically`);
+    /**
+     * Subscribe to relevant events
+     */
+    private subscribeToEvents() {
+        eventBus.subscribe("evolution:start", (data) => this.onEvolutionStart(data));
+        eventBus.subscribe("evolution:step", (data) => this.onEvolutionStep(data));
+        eventBus.subscribe("evolution:end", (data) => this.onEvolutionEnd(data));
     }
 
-    // Emit evolution event for other agents
-    eventBus["evolution:applied"]?.forEach(cb => cb({ componentName, changes }));
-
-    return { success: true };
-  }
-
-  // Evaluate overall system evolution status
-  async evaluateEvolution(systemState: any) {
-    logger.log(`[EvolutionAgent] Evaluating system evolution`, systemState);
-
-    const analyticsEngine = engineManager["AnalyticsEngine"];
-    let evaluation = null;
-    if (analyticsEngine && typeof analyticsEngine.run === "function") {
-      evaluation = await analyticsEngine.run({ action: "evolutionEvaluation", systemState });
+    private onEvolutionStart(data: any) {
+        console.log(`[EvolutionAgent] Evolution process started:`, data);
+        // Initialize populations, parameters, etc.
     }
 
-    logger.info(`[EvolutionAgent] Evolution evaluation complete`);
-    return evaluation;
-  }
-  }
+    private onEvolutionStep(data: any) {
+        console.log(`[EvolutionAgent] Evolution step:`, data);
+        // Run one iteration of evolution: selection, crossover, mutation
+    }
+
+    private onEvolutionEnd(data: any) {
+        console.log(`[EvolutionAgent] Evolution process ended:`, data);
+        // Save results, best solutions, stats
+    }
+
+    /**
+     * Run a custom evolutionary optimization
+     */
+    async runEvolution(config: any) {
+        console.log(`[EvolutionAgent] Running evolution with config:`, config);
+        // Placeholder: simulate evolution steps
+        return { bestSolution: {}, generations: config.generations || 10 };
+    }
+
+    /**
+     * Recover from errors
+     */
+    async recover(err: any) {
+        console.warn(`[EvolutionAgent] Recovering from error`, err);
+    }
+}
