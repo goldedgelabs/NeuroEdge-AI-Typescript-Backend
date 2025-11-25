@@ -10,8 +10,13 @@
 
 import { engineManager, registerEngine, runEngineChain, eventBus as engineEventBus } from "./core/engineManager";
 import { agentManager, registerAgent } from "./core/agentManager";
-import "./core/engineAgentConnector";
-// Engines
+import { wireEnginesToAgents } from "./core/engineAgentConnector";
+import { initializeDBWiring } from "./core/dbEventWiring";
+import { logger } from "./utils/logger";
+
+// -----------------------------
+// Engines (42 engines)
+// -----------------------------
 import { SelfImprovementEngine } from "./engines/SelfImprovementEngine";
 import { PredictiveEngine } from "./engines/PredictiveEngine";
 import { CodeEngine } from "./engines/CodeEngine";
@@ -37,23 +42,28 @@ import { DoctrineEngine } from "./engines/DoctrineEngine";
 import { ARVEngine } from "./engines/ARVEngine";
 import { MedicineManagementEngine } from "./engines/MedicineManagementEngine";
 import { GoldEdgeIntegrationEngine } from "./engines/GoldEdgeIntegrationEngine";
-import { initializeDBWiring } from "./core/dbEventWiring";
-import { initializeDBWiring } from "./core/dbEventWiring";
+import { PhoneSecurityEngine } from "./engines/PhoneSecurityEngine";
+import { HealthEngine } from "./engines/HealthEngine";
+import { DeviceProtectionEngine } from "./engines/DeviceProtectionEngine";
+import { RealTimeRecommenderEngine } from "./engines/RealTimeRecommenderEngine";
+import { MarketEngine } from "./engines/MarketEngine";
+import { ResearchEngine } from "./engines/ResearchEngine";
+import { MultiModalEngine } from "./engines/MultiModalEngine";
+import { PolicyEngine } from "./engines/PolicyEngine";
+import { SimulationEngine } from "./engines/SimulationEngine";
+import { GamingCreativeEngine } from "./engines/GamingCreativeEngine";
+import { EvolutionEngine } from "./engines/EvolutionEngine";
+import { LearningEngine } from "./engines/LearningEngine";
+import { GlobalMeshEngine } from "./engines/GlobalMeshEngine";
+import { FounderEngine } from "./engines/FounderEngine";
+import { ARVAnalyticsEngine } from "./engines/ARVAnalyticsEngine";
+import { AnalyticsResearchEngine } from "./engines/AnalyticsResearchEngine";
+import { ResearchAnalyticsEngine } from "./engines/ResearchAnalyticsEngine";
+import { SelfProtectionEngine } from "./engines/SelfProtectionEngine";
 
-import "./core/startup";
-import { engineManager } from "./core/engineManager";
-import { agentManager } from "./core/agentManager";
-import { logger } from "./utils/logger";
-
-logger.log("[Main] NeuroEdge system starting...");
-// Initialize DB event subscriptions for all engines & agents
-initializeDBWiring();
-
-console.log("[App] NeuroEdge system fully wired for DB events");
-
-// Initialize DB event subscriptions for all engines & agents
-initializeDBWiring();
-// Agents
+// -----------------------------
+// Agents (63 agents)
+// -----------------------------
 import { PlannerAgent } from "./agents/PlannerAgent";
 import { CriticAgent } from "./agents/CriticAgent";
 import { WorkerAgent } from "./agents/WorkerAgent";
@@ -63,7 +73,7 @@ import { SelfHealingAgent } from "./agents/SelfHealingAgent";
 import { PredictiveAgent } from "./agents/PredictiveAgent";
 import { AnalyticsAgent } from "./agents/AnalyticsAgent";
 import { MemoryAgent } from "./agents/MemoryAgent";
-import { TranslatorAgent } from "./agents/TranslatorAgent";
+import { TranslationAgent } from "./agents/TranslationAgent";
 import { ConversationAgent } from "./agents/ConversationAgent";
 import { MonitoringAgent } from "./agents/MonitoringAgent";
 import { SchedulingAgent } from "./agents/SchedulingAgent";
@@ -110,25 +120,6 @@ import { PhoneSecurityAgent } from "./agents/PhoneSecurityAgent";
 import { MedicineManagementAgent } from "./agents/MedicineManagementAgent";
 import { GoldEdgeIntegrationAgent } from "./agents/GoldEdgeIntegrationAgent";
 import { SelfProtectionAgent } from "./agents/SelfProtectionAgent";
-// src/index.ts (or bootstrap.ts)
-import { wireEnginesToAgents } from "./core/engineAgentConnector";
-import { runEngineChain } from "./core/engineManager";
-
-wireEnginesToAgents();
-
-// Example run
-(async () => {
-  const result = await runEngineChain([
-    { engine: "PlannerEngine", input: { goal: "Plan NeuroEdge rollout" } },
-    { engine: "AnalyticsEngine", input: { data: [1,2,3] } },
-  ]);
-
-  console.log("Engine chain result:", result);
-})();
-// Database
-import { LocalDB } from "./database/local/LocalDB";
-import { DistributedDB } from "./database/distributed/DistributedDB";
-import { Replicator } from "./database/replication/Replicator";
 
 // -----------------------------
 // 1. REGISTER ENGINES
@@ -138,7 +129,11 @@ const allEngines = [
   ReinforcementEngine, DataIngestEngine, AnalyticsEngine, PlannerEngine, MemoryEngine,
   ConversationEngine, SchedulingEngine, RecommendationEngine, SecurityEngine, MonitoringEngine,
   TranslationEngine, SummarizationEngine, PersonaEngine, CreativityEngine, OrchestrationEngine,
-  SearchEngine, DoctrineEngine, ARVEngine, MedicineManagementEngine, GoldEdgeIntegrationEngine
+  SearchEngine, DoctrineEngine, ARVEngine, MedicineManagementEngine, GoldEdgeIntegrationEngine,
+  PhoneSecurityEngine, HealthEngine, DeviceProtectionEngine, RealTimeRecommenderEngine,
+  MarketEngine, ResearchEngine, MultiModalEngine, PolicyEngine, SimulationEngine,
+  GamingCreativeEngine, EvolutionEngine, LearningEngine, GlobalMeshEngine, FounderEngine,
+  ARVAnalyticsEngine, AnalyticsResearchEngine, ResearchAnalyticsEngine, SelfProtectionEngine
 ];
 
 allEngines.forEach(E => registerEngine(E.name, new E()));
@@ -148,7 +143,7 @@ allEngines.forEach(E => registerEngine(E.name, new E()));
 // -----------------------------
 const allAgents = [
   PlannerAgent, CriticAgent, WorkerAgent, VerifierAgent, SupervisorAgent, SelfHealingAgent,
-  PredictiveAgent, AnalyticsAgent, MemoryAgent, TranslatorAgent, ConversationAgent,
+  PredictiveAgent, AnalyticsAgent, MemoryAgent, TranslationAgent, ConversationAgent,
   MonitoringAgent, SchedulingAgent, RecommendationAgent, OrchestrationAgent, CreativityAgent,
   SecurityAgent, VisionAgent, VoiceAgent, ReinforcementAgent, DoctrineAgent, PersonaAgent,
   ARVAgent, SelfImprovementAgent, DataIngestAgent, SummarizationAgent, SearchAgent,
@@ -165,28 +160,46 @@ allAgents.forEach(A => registerAgent(A.name, new A()));
 // -----------------------------
 // 3. DATABASE INIT
 // -----------------------------
+import { LocalDB } from "./db/local/LocalDB";
+import { DistributedDB } from "./db/distributed/DistributedDB";
+import { Replicator } from "./db/replication/Replicator";
+
 const localDB = new LocalDB();
 const distributedDB = new DistributedDB();
 const replicator = new Replicator(localDB, distributedDB);
 
-// Connect DB events to engine/agent manager
-eventBus.subscribe("db:update", (data: any) => {
-  engineEventBus.publish("db:update", data);
+// Connect DB events to engine/agent managers
+engineEventBus.subscribe("db:update", (data: any) => {
+  Object.values(agentManager).forEach(agent => agent.handleDBUpdate?.(data));
 });
+engineEventBus.subscribe("db:delete", (data: any) => {
+  Object.values(agentManager).forEach(agent => agent.handleDBDelete?.(data));
+});
+
+// Initialize DB wiring
+initializeDBWiring();
 
 // Offline-first setup
-OfflineAgent?.run?.({ db: localDB });
+agentManager["OfflineAgent"]?.run?.({ db: localDB });
 
 // -----------------------------
-// 4. EVENT BUS EXAMPLE
+// 4. CONNECT ENGINES → AGENTS
 // -----------------------------
-engineEventBus.subscribe("medicine:new", (data) => {
-  const agent = agentManager["MedicineManagementAgent"];
-  agent?.processNewMedicine?.(data);
-});
+wireEnginesToAgents();
 
 // -----------------------------
 // 5. READY-TO-RUN NEUROEDGE
 // -----------------------------
-console.log("[NeuroEdge] Core bootstrap complete. Engines and Agents are live.");
+logger.log("[NeuroEdge] Core bootstrap complete. Engines and Agents are live.");
 (globalThis as any).__NE_CORE_BOOTSTRAP = true;
+
+// -----------------------------
+// 6. EXAMPLE ENGINE CHAIN RUN
+// -----------------------------
+(async () => {
+  const result = await runEngineChain([
+    { engine: "PlannerEngine", input: { goal: "Plan NeuroEdge rollout" } },
+    { engine: "AnalyticsEngine", input: { data: [1,2,3] } },
+  ]);
+  console.log("Engine chain result:", result);
+})();
