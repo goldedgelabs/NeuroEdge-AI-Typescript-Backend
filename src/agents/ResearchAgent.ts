@@ -1,44 +1,33 @@
-// src/agents/ResearchAgent.ts
-import { logger } from "../utils/logger";
-import { engineManager, eventBus } from "../core/engineManager";
+import { AgentBase } from "./AgentBase";
+import { eventBus, agentManager } from "../core/engineManager";
 
-export class ResearchAgent {
-  name = "ResearchAgent";
-  private knowledgeBase: Record<string, any> = {};
-
+export class ResearchAgent extends AgentBase {
   constructor() {
-    logger.info(`${this.name} initialized`);
+    super("ResearchAgent");
   }
 
-  // Add new research entry
-  addResearch(topic: string, data: any) {
-    this.knowledgeBase[topic] = data;
-    logger.log(`[ResearchAgent] Added research topic: ${topic}`);
-    eventBus["research:new"]?.forEach(cb => cb({ topic, data }));
-    return { success: true };
-  }
+  /**
+   * Run method to perform research tasks
+   * input example: { topic: string, parameters?: any }
+   */
+  async run(input?: any) {
+    if (!input) return { error: "No input provided" };
+    const { topic, parameters } = input;
 
-  // Query research
-  queryResearch(topic: string) {
-    const result = this.knowledgeBase[topic] || null;
-    logger.info(`[ResearchAgent] Query topic: ${topic}`, result);
-    return result;
-  }
+    console.log(`[ResearchAgent] Conducting research on topic: ${topic}`);
 
-  // Collaborate with engines or other agents
-  async collaborate(engineName: string, input: any) {
-    const engine = engineManager[engineName];
-    if (!engine || typeof engine.run !== "function") {
-      logger.warn(`[ResearchAgent] Engine '${engineName}' not found or invalid.`);
-      return { success: false, message: "Engine unavailable" };
+    // Example: trigger ResearchEngine if available
+    const researchEngine = agentManager["ResearchEngine"];
+    if (researchEngine && typeof researchEngine.run === "function") {
+      const results = await researchEngine.run({ topic, parameters });
+      return { topic, results };
     }
-    logger.log(`[ResearchAgent] Collaborating with ${engineName} on input:`, input);
-    const output = await engine.run(input);
-    return { success: true, output };
+
+    // Fallback
+    return { topic, results: [], message: "No engine available" };
   }
 
-  // List all stored research topics
-  listTopics() {
-    return Object.keys(this.knowledgeBase);
+  async recover(err: any) {
+    console.error(`[ResearchAgent] Recovering from error:`, err);
   }
 }
