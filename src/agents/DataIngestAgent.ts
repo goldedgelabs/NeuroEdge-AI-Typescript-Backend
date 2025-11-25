@@ -1,46 +1,41 @@
-// src/agents/DataIngestAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/engineManager";
 
-export class DataIngestAgent {
-  name = "DataIngestAgent";
-
-  constructor() {
-    logger.log(`[DataIngestAgent] Initialized`);
-  }
-
-  // Ingest data from multiple sources
-  async ingest(sources: any[]) {
-    logger.info(`[DataIngestAgent] Ingesting data from ${sources.length} sources`);
-
-    const aggregatedData: any[] = [];
-    for (const source of sources) {
-      try {
-        // Example: call DataIngestEngine for each source
-        const data = await engineManager.DataIngestEngine?.run?.({ source });
-        aggregatedData.push(data);
-      } catch (err) {
-        logger.error(`[DataIngestAgent] Failed to ingest from source`, source, err);
-      }
+/**
+ * DataIngestAgent
+ * ----------------
+ * Responsible for collecting, validating, and publishing data
+ * to engines or external sources.
+ */
+export class DataIngestAgent extends AgentBase {
+    constructor() {
+        super("DataIngestAgent");
     }
 
-    // Optionally store or pass to AnalyticsEngine
-    if (engineManager.AnalyticsEngine) {
-      await engineManager.AnalyticsEngine.run({ data: aggregatedData });
+    /**
+     * Ingest data from external source
+     */
+    async ingest(source: string, data: any) {
+        console.log(`[DataIngestAgent] Ingesting data from ${source}`, data);
+
+        // Example: publish data to interested engines/agents
+        eventBus.publish("data:ingested", { source, data });
+
+        return { success: true, source, data };
     }
 
-    return aggregatedData;
-  }
-
-  async recover(err: any) {
-    logger.warn(`[DataIngestAgent] Recovering from error`, err);
-  }
-
-  async talkTo(agentName: string, method: string, payload: any) {
-    const agent = (globalThis as any).__NE_AGENT_MANAGER?.[agentName];
-    if (agent && typeof agent[method] === "function") {
-      return await agent[method](payload);
+    /**
+     * Transform data before sending
+     */
+    async transform(data: any) {
+        // Example transformation
+        return { ...data, timestamp: Date.now() };
     }
-    return null;
-  }
+
+    /**
+     * Recover in case of error
+     */
+    async recover(err: any) {
+        console.warn(`[DataIngestAgent] Recovering from error`, err);
+    }
 }
