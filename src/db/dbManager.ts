@@ -1,46 +1,51 @@
 // src/db/dbManager.ts
-import { eventBus } from "../core/eventBus";
-import { logger } from "../utils/logger";
+import { LocalDB } from "./local/LocalDB";
+import { DistributedDB } from "./distributed/DistributedDB";
+import { Replicator } from "./replication/Replicator";
+import { eventBus } from "../core/engineManager";
 
-type StorageLayer = "edge" | "shared";
+// Initialize local + distributed DB
+export const localDB = new LocalDB();
+export const distributedDB = new DistributedDB();
+export const replicator = new Replicator(localDB, distributedDB);
 
-interface RecordItem {
-  id: string;
-  collection: string;
-  [key: string]: any;
-}
+export const db = {
+  async set(
+    collection: string,
+    key: string,
+    value: any,
+    target: "edge" | "shared" = "edge"
+  ) {
+    if (target === "edge") await localDB.set(collection, key, value);
+    else await distributedDB.set(collection, key, value);
 
-class DBManager {
-  private store: Record<StorageLayer, Record<string, Record<string, any>>> = {
-    edge: {},
-    shared: {},
-  };
-
-  async set(collection: string, key: string, value: any, layer: StorageLayer = "edge") {
-    if (!this.store[layer][collection]) this.store[layer][collection] = {};
-    this.store[layer][collection][key] = value;
-
-    // Fire update events
-    eventBus.publish("db:update", { collection, key, value, layer });
-    logger.log(`[DBManager] Set ${layer}:${collection}:${key}`);
+    // Emit update event
+    eventBus.publish("db:update", { collection, key, value, target });
     return value;
-  }
+  },
 
-  async get(collection: string, key: string, layer: StorageLayer = "edge") {
-    return this.store[layer][collection]?.[key] ?? null;
-  }
+  async get(collection: string, key: string, target: "edge" | "shared" = "edge") {
+    if (target === "edge") return await localDB.get(collection, key);
+    else return await distributedDB.get(collection, key);
+  },
 
-  async delete(collection: string, key: string, layer: StorageLayer = "edge") {
-    if (this.store[layer][collection]?.[key]) {
-      delete this.store[layer][collection][key];
-      eventBus.publish("db:delete", { collection, key, layer });
-      logger.log(`[DBManager] Deleted ${layer}:${collection}:${key}`);
-    }
-  }
+  async getAll(collection: string, target: "edge" | "shared" = "edge") {
+    if (target === "edge") return await localDB.getAll(collection);
+    else return await distributedDB.getAll(collection);
+  },
 
-  async getAll(collection: string, layer: StorageLayer = "edge") {
-    return Object.values(this.store[layer][collection] ?? {});
-  }
-}
+  async delete(collection: string, key: string, target: "edge" | "shared" = "edge") {
+    if (target === "edge") await localDB.delete(collection, key);
+    else await distributedDB.delete(collection, key);
 
-export const db = new DBManager();
+    eventBus.publish("db:delete", { collection, key, target });
+  },
+
+  async replicateCollection(collection: string) {
+    await replicator.replicate(collection);
+  },
+
+  async replicateAll(collections: string[]) {
+    await replicator.replicateAll(collections);
+  }
+};
