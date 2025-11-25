@@ -1,6 +1,7 @@
 // src/agents/InspectionAgent.ts
 import { engineManager, registerEngine } from "../core/engineManager";
 import { agentManager, registerAgent, wireDBSubscriptions } from "../core/agentManager";
+import { replicateEdgeToShared } from "../db/replication";
 import { logger } from "../utils/logger";
 import fs from "fs";
 import path from "path";
@@ -40,6 +41,8 @@ export class InspectionAgent {
       if (!engineManager[name]) {
         registerEngine(name, instance);
         logger.log(`[InspectionAgent] Engine registered: ${name}`);
+        // Replicate engine registration to shared DB
+        await replicateEdgeToShared("engines");
       }
     }
   }
@@ -56,6 +59,8 @@ export class InspectionAgent {
         registerAgent(name, instance);
         wireDBSubscriptions(name);
         logger.log(`[InspectionAgent] Agent registered: ${name}`);
+        // Replicate agent registration to shared DB
+        await replicateEdgeToShared("agents");
       }
     }
   }
@@ -88,9 +93,6 @@ export class InspectionAgent {
     logger.log(`[InspectionAgent] Inspection completed.`);
   }
 
-  /**
-   * Start periodic inspection at given interval (ms)
-   */
   public startPeriodicInspection(enginesFolder: string, agentsFolder: string, intervalMs: number = 60000) {
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = setInterval(async () => {
@@ -110,4 +112,4 @@ export class InspectionAgent {
       logger.log(`[InspectionAgent] Periodic inspection stopped`);
     }
   }
-    }
+  }
