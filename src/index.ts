@@ -15,7 +15,7 @@ import { initializeDBWiring } from "./core/dbEventWiring";
 import { logger } from "./utils/logger";
 
 // -----------------------------
-// Engines (42 engines)
+// ENGINES (42 engines)
 // -----------------------------
 import { SelfImprovementEngine } from "./engines/SelfImprovementEngine";
 import { PredictiveEngine } from "./engines/PredictiveEngine";
@@ -62,7 +62,7 @@ import { ResearchAnalyticsEngine } from "./engines/ResearchAnalyticsEngine";
 import { SelfProtectionEngine } from "./engines/SelfProtectionEngine";
 
 // -----------------------------
-// Agents (63 agents)
+// AGENTS (63 agents)
 // -----------------------------
 import { PlannerAgent } from "./agents/PlannerAgent";
 import { CriticAgent } from "./agents/CriticAgent";
@@ -135,7 +135,6 @@ const allEngines = [
   GamingCreativeEngine, EvolutionEngine, LearningEngine, GlobalMeshEngine, FounderEngine,
   ARVAnalyticsEngine, AnalyticsResearchEngine, ResearchAnalyticsEngine, SelfProtectionEngine
 ];
-
 allEngines.forEach(E => registerEngine(E.name, new E()));
 
 // -----------------------------
@@ -154,11 +153,10 @@ const allAgents = [
   FeedbackAgent, EvolutionAgent, LearningAgent, GlobalMeshAgent, PhoneSecurityAgent,
   MedicineManagementAgent, GoldEdgeIntegrationAgent, SelfProtectionAgent
 ];
-
 allAgents.forEach(A => registerAgent(A.name, new A()));
 
 // -----------------------------
-// 3. DATABASE INIT
+// 3. DATABASE INIT & EVENT WIRING
 // -----------------------------
 import { LocalDB } from "./db/local/LocalDB";
 import { DistributedDB } from "./db/distributed/DistributedDB";
@@ -168,7 +166,7 @@ const localDB = new LocalDB();
 const distributedDB = new DistributedDB();
 const replicator = new Replicator(localDB, distributedDB);
 
-// Connect DB events to engine/agent managers
+// Subscribe agents to DB events
 engineEventBus.subscribe("db:update", (data: any) => {
   Object.values(agentManager).forEach(agent => agent.handleDBUpdate?.(data));
 });
@@ -178,6 +176,12 @@ engineEventBus.subscribe("db:delete", (data: any) => {
 
 // Initialize DB wiring
 initializeDBWiring();
+
+// Optional: replicate all collections on startup
+(async () => {
+  const collections = ["medicine", "analytics", "logs", "predictions"];
+  await replicator.replicateAll(collections);
+})();
 
 // Offline-first setup
 agentManager["OfflineAgent"]?.run?.({ db: localDB });
