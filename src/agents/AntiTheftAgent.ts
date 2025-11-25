@@ -1,34 +1,72 @@
-// src/agents/AntiTheftAgent.ts
-import { logger } from "../utils/logger";
-import { eventBus } from "../core/engineManager";
+import { AgentBase } from "./AgentBase";
+import { eventBus } from "../core/eventBus";
+import { db } from "../db/dbManager";
 
-export class AntiTheftAgent {
-  name = "AntiTheftAgent";
-  stolenDevices: Record<string, any> = {};
-
+export class AntiTheftAgent extends AgentBase {
   constructor() {
-    logger.info(`${this.name} initialized`);
+    super({
+      id: "anti-theft-agent",
+      name: "Anti-Theft Agent",
+      description: "Detects and handles phone theft, unauthorized access, and device tampering.",
+      type: "security"
+    });
   }
 
-  reportDevice(deviceId: string, owner: string, details?: any) {
-    this.stolenDevices[deviceId] = { owner, details, reportedAt: new Date() };
-    logger.warn(`[AntiTheftAgent] Device reported stolen: ${deviceId} (${owner})`);
+  /**
+   * Main handler
+   */
+  async handle(payload: any): Promise<any> {
+    const { action, data } = payload;
 
-    // Broadcast alert to the mesh
-    eventBus["antiTheft:alert"]?.forEach(cb => cb({ deviceId, owner, details }));
-    return { success: true };
-  }
+    switch (action) {
+      case "report-theft":
+        return this.reportTheft(data);
 
-  removeDevice(deviceId: string) {
-    if (this.stolenDevices[deviceId]) {
-      delete this.stolenDevices[deviceId];
-      logger.log(`[AntiTheftAgent] Device removed from stolen list: ${deviceId}`);
-      return { success: true };
+      case "track-device":
+        return this.trackDevice(data);
+
+      default:
+        return { error: "Unknown action for AntiTheftAgent" };
     }
-    return { success: false, message: "Device not found" };
   }
 
-  listStolenDevices() {
-    return this.stolenDevices;
+  /**
+   * Report device theft and store in DB
+   */
+  async reportTheft(info: any) {
+    const id = Date.now().toString();
+    await db.set("theft_reports", id, info, "edge");
+
+    // Notify subscribed engines/agents
+    eventBus.publish("security:theft-report", { id, info });
+
+    return { success: true, id };
   }
-    }
+
+  /**
+   * Track device location / status
+   */
+  async trackDevice(deviceInfo: any) {
+    // Here you can integrate GPS/edge device APIs
+    const status = {
+      deviceId: deviceInfo.deviceId,
+      lastSeen: new Date().toISOString(),
+      location: deviceInfo.location ?? "unknown",
+      alert: deviceInfo.alert ?? false
+    };
+
+    return status;
+  }
+
+  /**
+   * Optional: subscribe to DB events to auto-detect theft
+   */
+  async init() {
+    eventBus.subscribe("db:update", async (e) => {
+      if (e.collection === "theft_reports") {
+        console.log(`[AntiTheftAgent] Theft report updated: ${e.key}`);
+        // Optional: trigger notifications / further logic
+      }
+    });
+  }
+}
