@@ -1,35 +1,53 @@
-// src/agents/SupervisorAgent.ts
-import { engineManager } from "../core/engineManager";
-import { logger } from "../utils/logger";
+import { AgentBase } from "./AgentBase";
+import { engineManager, agentManager, eventBus } from "../core/engineManager";
 
-export class SupervisorAgent {
-  name = "SupervisorAgent";
-
+export class SupervisorAgent extends AgentBase {
   constructor() {
-    logger.log(`${this.name} initialized`);
+    super("SupervisorAgent");
   }
 
-  async monitor(engineName: string, data?: any) {
-    if (!engineManager[engineName]) {
-      logger.warn(`[${this.name}] Engine not found: ${engineName}`);
-      return { error: "Engine not found" };
+  /**
+   * Supervises the execution of other agents and engines.
+   * Can trigger alerts, retries, or corrective actions if something fails.
+   */
+  async run(input?: any) {
+    const { targetAgent, targetEngine, task } = input || {};
+
+    if (!targetAgent && !targetEngine) {
+      return { error: "No target agent or engine specified for supervision." };
     }
 
-    logger.info(`[${this.name}] Monitoring engine: ${engineName}`);
-    try {
-      const result = await engineManager[engineName].run(data || {});
-      return { success: true, data: result };
-    } catch (err) {
-      logger.error(`[${this.name}] Error monitoring ${engineName}:`, err);
-      return { success: false, error: err };
+    console.log(`[SupervisorAgent] Supervising task:`, task || "general supervision");
+
+    // Example supervision logic
+    if (targetAgent && agentManager[targetAgent]) {
+      try {
+        return await agentManager[targetAgent].run(task);
+      } catch (err) {
+        console.warn(`[SupervisorAgent] Detected failure in agent ${targetAgent}. Attempting recovery.`);
+        if (typeof agentManager[targetAgent].recover === "function") {
+          await agentManager[targetAgent].recover(err);
+        }
+        return { error: "Recovered from agent failure" };
+      }
     }
+
+    if (targetEngine && engineManager[targetEngine]) {
+      try {
+        return await engineManager[targetEngine].run(task);
+      } catch (err) {
+        console.warn(`[SupervisorAgent] Detected failure in engine ${targetEngine}.`);
+        if (typeof engineManager[targetEngine].recover === "function") {
+          await engineManager[targetEngine].recover(err);
+        }
+        return { error: "Recovered from engine failure" };
+      }
+    }
+
+    return { message: "Supervision completed." };
   }
 
-  async recover(engineName: string, error: any) {
-    logger.warn(`[${this.name}] Attempting recovery for ${engineName}`);
-    if (engineManager[engineName] && typeof engineManager[engineName].recover === "function") {
-      await engineManager[engineName].recover(error);
-    }
-    return { recovered: true };
+  async recover(err: any) {
+    console.error(`[SupervisorAgent] Recovering from error:`, err);
   }
-}
+  }
