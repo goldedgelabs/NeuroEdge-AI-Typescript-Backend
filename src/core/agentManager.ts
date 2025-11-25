@@ -1,5 +1,4 @@
 // src/core/agentManager.ts
-import { DoctrineAgent } from "../agents/DoctrineAgent";
 import { db } from "../db/dbManager";
 import { eventBus } from "./eventBus";
 import { logger } from "../utils/logger";
@@ -81,6 +80,7 @@ export function registerAgent(name: string, agentInstance: any) {
           const folderArg = args[0]?.folder || "";
           const userRole = args[0]?.role || "user";
 
+          // Doctrine enforcement
           let doctrineResult = { success: true };
           if (doctrine && typeof doctrine.enforceAction === "function") {
             doctrineResult = await doctrine.enforceAction(action, folderArg, userRole);
@@ -93,9 +93,15 @@ export function registerAgent(name: string, agentInstance: any) {
           try {
             const result = await origMethod.apply(target, args);
 
+            // DB integration + eventBus
             if (result?.collection && result?.id) {
               await db.set(result.collection, result.id, result, "edge");
-              eventBus.publish("db:update", { collection: result.collection, key: result.id, value: result, source: name });
+              eventBus.publish("db:update", {
+                collection: result.collection,
+                key: result.id,
+                value: result,
+                source: name,
+              });
               logger.log(`[AgentManager] DB updated by ${name}.${String(prop)} → ${result.collection}:${result.id}`);
             }
 
@@ -107,11 +113,12 @@ export function registerAgent(name: string, agentInstance: any) {
         };
       }
       return origMethod;
-    }
+    },
   });
 }
 
 // -----------------------------
+// Register all 63 agents
 [
   ARVAgent,
   AnalyticsAgent,
@@ -130,7 +137,6 @@ export function registerAgent(name: string, agentInstance: any) {
   DeviceProtectionAgent,
   DiscoveryAgent,
   DistributedTaskAgent,
-  DoctrineAgent,
   EdgeDeviceAgent,
   EvolutionAgent,
   FeedbackAgent,
@@ -171,7 +177,8 @@ export function registerAgent(name: string, agentInstance: any) {
   TranslationAgent,
   ValidationAgent,
   VerifierAgent,
-  WorkerAgent
+  WorkerAgent,
 ].forEach((AgentClass) => registerAgent(AgentClass.name, new AgentClass()));
 
+// DoctrineAgent also registered
 registerAgent("DoctrineAgent", doctrine);
