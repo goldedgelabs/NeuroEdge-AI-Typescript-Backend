@@ -1,117 +1,111 @@
-import fs from "fs";
-import path from "path";
-import { engineManager, registerEngine, eventBus } from "../core/engineManager";
-import { agentManager, registerAgent } from "../core/agentManager";
+// src/agents/InspectionAgent.ts
+
+import { readdirSync, statSync } from "fs";
+import { join } from "path";
+import { engineManager } from "../core/engineManager";
+import { agentManager } from "../core/agentManager";
 import { db } from "../db/dbManager";
+import { eventBus } from "../core/engineManager";
 import { logger } from "../utils/logger";
 
 export class InspectionAgent {
   name = "InspectionAgent";
 
   constructor() {
-    logger.log(`[InspectionAgent] Initialized`);
+    logger.log(`[${this.name}] Initialized`);
   }
 
-  /** Scan folder recursively for .ts files */
+  /**
+   * Scan a folder recursively and return .ts files
+   */
   scanFolder(folderPath: string): string[] {
-    let results: string[] = [];
-    const items = fs.readdirSync(folderPath);
+    const files: string[] = [];
+    const items = readdirSync(folderPath);
 
-    for (const item of items) {
-      const fullPath = path.join(folderPath, item);
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        results = results.concat(this.scanFolder(fullPath));
-      } else if (fullPath.endsWith(".ts")) {
-        results.push(fullPath);
+    items.forEach(item => {
+      const fullPath = join(folderPath, item);
+      const stats = statSync(fullPath);
+
+      if (stats.isDirectory()) {
+        files.push(...this.scanFolder(fullPath));
+      } else if (stats.isFile() && fullPath.endsWith(".ts")) {
+        files.push(fullPath);
       }
-    }
+    });
 
-    return results;
+    return files;
   }
 
-  /** Dynamically register all engines */
-  inspectEngines(folderPath: string) {
-    const files = this.scanFolder(folderPath);
-
-    files.forEach(file => {
-      const EngineClass = require(file).default || require(file);
-      if (!EngineClass) return;
+  /**
+   * Load and register all engines
+   */
+  async registerEngines(enginesFolder: string) {
+    const files = this.scanFolder(enginesFolder);
+    for (const file of files) {
+      const module = await import(file);
+      const EngineClass = module.default || Object.values(module)[0];
+      if (!EngineClass) continue;
 
       const engineName = EngineClass.name;
       if (!engineManager[engineName]) {
-        logger.log(`[InspectionAgent] Registering Engine: ${engineName}`);
-        registerEngine(engineName, new EngineClass());
+        const instance = new EngineClass();
+        engineManager[engineName] = instance;
+        logger.log(`[InspectionAgent] Registered Engine: ${engineName}`);
       }
-    });
+    }
   }
 
-  /** Dynamically register all agents */
-  inspectAgents(folderPath: string) {
-    const files = this.scanFolder(folderPath);
-
-    files.forEach(file => {
-      const AgentClass = require(file).default || require(file);
-      if (!AgentClass) return;
+  /**
+   * Load and register all agents
+   */
+  async registerAgents(agentsFolder: string) {
+    const files = this.scanFolder(agentsFolder);
+    for (const file of files) {
+      const module = await import(file);
+      const AgentClass = module.default || Object.values(module)[0];
+      if (!AgentClass) continue;
 
       const agentName = AgentClass.name;
       if (!agentManager[agentName]) {
-        logger.log(`[InspectionAgent] Registering Agent: ${agentName}`);
-        const agentInstance = new AgentClass();
-
-        // Auto-wire DB events
-        if (typeof agentInstance.handleDBUpdate === "function") {
-          eventBus.subscribe("db:update", async (event: any) => {
-            await agentInstance.handleDBUpdate(event);
-          });
-        }
-
-        if (typeof agentInstance.handleDBDelete === "function") {
-          eventBus.subscribe("db:delete", async (event: any) => {
-            await agentInstance.handleDBDelete(event);
-          });
-        }
-
-        registerAgent(agentName, agentInstance);
+        const instance = new AgentClass();
+        agentManager[agentName] = instance;
+        logger.log(`[InspectionAgent] Registered Agent: ${agentName}`);
       }
-    });
-  }
-
-  /** Full system inspection and wiring */
-  runInspection() {
-    logger.log(`[InspectionAgent] Running full system inspection...`);
-
-    const enginesFolder = path.resolve(__dirname, "../engines");
-    const agentsFolder = path.resolve(__dirname, "../agents");
-
-    this.inspectEngines(enginesFolder);
-    this.inspectAgents(agentsFolder);
-
-    logger.log(`[InspectionAgent] Inspection and auto-wiring complete.`);
-  }
-
-  /** Unregister engine dynamically */
-  unregisterEngine(name: string) {
-    if (engineManager[name]) {
-      delete engineManager[name];
-      logger.log(`[InspectionAgent] Engine unregistered: ${name}`);
     }
   }
 
-  /** Unregister agent dynamically */
-  unregisterAgent(name: string) {
-    if (agentManager[name]) {
-      delete agentManager[name];
-      logger.log(`[InspectionAgent] Agent unregistered: ${name}`);
-    }
+  /**
+   * Handle DB update events
+   */
+  async handleDBUpdate(event: any) {
+    logger.log(`[InspectionAgent] DB Update:`, event);
+    // Example: trigger specific agent reactions
+    // e.g., resync new engines/agents after DB update
   }
 
-  /** Replicate edge DB data to shared DB automatically */
-  async replicateEdgeToShared(collection: string) {
-    const edgeRecords = await db.getAll(collection, "edge");
-    for (const record of edgeRecords) {
-      await db.set(collection, record.id, record, "shared");
-    }
-    logger.log(`[InspectionAgent] Replicated ${collection} from edge → shared`);
+  /**
+   * Handle DB delete events
+   */
+  async handleDBDelete(event: any) {
+    logger.log(`[InspectionAgent] DB Delete:`, event);
+    // Example: unregister removed engines/agents
   }
-}
+
+  /**
+   * Wire event bus subscriptions
+   */
+  subscribeToEvents() {
+    eventBus.subscribe("db:update", this.handleDBUpdate.bind(this));
+    eventBus.subscribe("db:delete", this.handleDBDelete.bind(this));
+  }
+
+  /**
+   * Full initialization routine
+   */
+  async initialize({ agentsFolder, enginesFolder }: { agentsFolder: string; enginesFolder: string }) {
+    await this.registerEngines(enginesFolder);
+    await this.registerAgents(agentsFolder);
+    this.subscribeToEvents();
+    logger.log(`[${this.name}] Initialization complete. Engines and Agents synced.`);
+  }
+  }
