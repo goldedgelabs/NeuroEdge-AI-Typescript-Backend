@@ -1,18 +1,16 @@
 // src/core/agentManager.ts
 /**
  * NeuroEdge Agent Manager
- * -----------------------
+ * ----------------------
  * Central registry for all agents
- * Provides:
- *  - Doctrine enforcement
- *  - Self-healing
- *  - Inter-agent communication via eventBus
- *  - Global reference for access
+ * - Doctrine enforcement
+ * - Self-healing
+ * - DB event subscription
  */
 
-import { DoctrineAgent } from "../agents/DoctrineAgent";
+import { eventBus } from "../core/engineManager";
 
-// Import all 63 agents
+// Import all agents
 import { ARVAgent } from "../agents/ARVAgent";
 import { AgentBase } from "../agents/AgentBase";
 import { AnalyticsAgent } from "../agents/AnalyticsAgent";
@@ -31,12 +29,13 @@ import { DecisionAgent } from "../agents/DecisionAgent";
 import { DeviceProtectionAgent } from "../agents/DeviceProtectionAgent";
 import { DiscoveryAgent } from "../agents/DiscoveryAgent";
 import { DistributedTaskAgent } from "../agents/DistributedTaskAgent";
+import { DoctrineAgent } from "../agents/DoctrineAgent";
 import { EdgeDeviceAgent } from "../agents/EdgeDeviceAgent";
 import { EvolutionAgent } from "../agents/EvolutionAgent";
 import { FeedbackAgent } from "../agents/FeedbackAgent";
 import { FounderAgent } from "../agents/FounderAgent";
 import { GPUAgent } from "../agents/GPUAgent";
-import { GlobalMedAgent } from "../agents/GlobalMedAgent";
+import { GlobalMeshAgent } from "../agents/GlobalMeshAgent";
 import { GoldEdgeIntegrationAgent } from "../agents/GoldEdgeIntegrationAgent";
 import { HotReloadAgent } from "../agents/HotReloadAgent";
 import { InspectionAgent } from "../agents/InspectionAgent";
@@ -73,13 +72,13 @@ import { ValidationAgent } from "../agents/ValidationAgent";
 import { VerifierAgent } from "../agents/VerifierAgent";
 import { WorkerAgent } from "../agents/WorkerAgent";
 
+// Agent registry
 export const agentManager: Record<string, any> = {};
 const doctrine = new DoctrineAgent();
 
-// Set global reference for agents to access manager
-(globalThis as any).__NE_AGENT_MANAGER = agentManager;
-
-// Register agents with Doctrine enforcement & self-healing
+// -----------------------------
+// Register agents with Doctrine & self-healing
+// -----------------------------
 export function registerAgent(name: string, agentInstance: any) {
   agentManager[name] = new Proxy(agentInstance, {
     get(target: any, prop: string) {
@@ -95,7 +94,6 @@ export function registerAgent(name: string, agentInstance: any) {
           if (doctrine && typeof doctrine.enforceAction === "function") {
             doctrineResult = await doctrine.enforceAction(action, folderArg, userRole);
           }
-
           if (!doctrineResult.success) {
             console.warn(`[Doctrine] Action blocked: ${action}`);
             return { blocked: true, message: doctrineResult.message };
@@ -117,18 +115,28 @@ export function registerAgent(name: string, agentInstance: any) {
   });
 }
 
-// Event Bus for agent-to-agent communication
-export const eventBus: Record<string, Function[]> = {};
-export function subscribe(channel: string, callback: Function) {
-  if (!eventBus[channel]) eventBus[channel] = [];
-  eventBus[channel].push(callback);
-}
-export function publish(channel: string, data: any) {
-  const subscribers = eventBus[channel] || [];
-  subscribers.forEach(cb => cb(data));
-}
+// -----------------------------
+// Subscribe all agents to DB events
+// -----------------------------
+eventBus.subscribe("db:update", async (event: any) => {
+  for (const agent of Object.values(agentManager)) {
+    if (typeof agent.handleDBUpdate === "function") {
+      await agent.handleDBUpdate(event);
+    }
+  }
+});
 
+eventBus.subscribe("db:delete", async (event: any) => {
+  for (const agent of Object.values(agentManager)) {
+    if (typeof agent.handleDBDelete === "function") {
+      await agent.handleDBDelete(event);
+    }
+  }
+});
+
+// -----------------------------
 // Register all 63 agents
+// -----------------------------
 [
   ARVAgent,
   AgentBase,
@@ -148,12 +156,13 @@ export function publish(channel: string, data: any) {
   DeviceProtectionAgent,
   DiscoveryAgent,
   DistributedTaskAgent,
+  DoctrineAgent,
   EdgeDeviceAgent,
   EvolutionAgent,
   FeedbackAgent,
   FounderAgent,
   GPUAgent,
-  GlobalMedAgent,
+  GlobalMeshAgent,
   GoldEdgeIntegrationAgent,
   HotReloadAgent,
   InspectionAgent,
@@ -190,6 +199,6 @@ export function publish(channel: string, data: any) {
   VerifierAgent,
   WorkerAgent
 ].forEach((AgentClass: any) => {
-  const instance = new AgentClass();
-  registerAgent(instance.constructor.name, instance);
+  const name = AgentClass.name.replace(".ts", "");
+  registerAgent(name, new AgentClass());
 });
