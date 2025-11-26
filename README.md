@@ -1,6 +1,6 @@
 # NeuroEdge AI Core TypeScript Engine
 
-NeuroEdge is a distributed, offline-first AI system containing:
+NeuroEdge is a distributed, offline-first AI system. The TypeScript backend containins:
 
 - **42 Engines**
 - **63 Agents**
